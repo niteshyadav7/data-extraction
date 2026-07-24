@@ -97,7 +97,7 @@ export const CompleteOptionChain: React.FC<CompleteOptionChainProps> = ({
             Complete Option Chain Matrix ({filteredRows.length} Strikes)
             {showGreeks && (
               <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '4px', backgroundColor: 'var(--bg-blue)', color: 'var(--color-blue)', border: '1px solid #BBDEFB' }}>
-                Greeks View Active (Δ, Γ, Θ, ν)
+                Quant Metrics & Greeks Active (Intrinsic, Extrinsic, POP %, Δ, Γ, Θ, ν)
               </span>
             )}
           </h2>
@@ -107,7 +107,7 @@ export const CompleteOptionChain: React.FC<CompleteOptionChainProps> = ({
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-          {/* Greeks Toggle Button */}
+          {/* Greeks & Quant Metrics Toggle Button */}
           <button
             onClick={() => setShowGreeks(!showGreeks)}
             style={{
@@ -126,7 +126,7 @@ export const CompleteOptionChain: React.FC<CompleteOptionChainProps> = ({
             }}
           >
             <Sparkles size={15} />
-            {showGreeks ? "Greeks View ON" : "+ Show Greeks (Δ, Γ, Θ, ν)"}
+            {showGreeks ? "Greeks & Quant Metrics ON" : "+ Show Greeks & Intrinsic/Extrinsic/POP %"}
           </button>
 
           {/* Dynamic Strike Range Filter */}
@@ -168,7 +168,7 @@ export const CompleteOptionChain: React.FC<CompleteOptionChainProps> = ({
         </div>
       </div>
 
-      {/* Legend for ITM Shading & Greeks */}
+      {/* Legend for ITM Shading & Quant Metrics */}
       <div style={{ display: 'flex', gap: '16px', fontSize: '0.75rem', fontWeight: 600, marginBottom: '12px', color: 'var(--text-muted)', flexWrap: 'wrap' }}>
         <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <span style={{ width: '12px', height: '12px', borderRadius: '3px', backgroundColor: 'rgba(76, 175, 80, 0.25)', border: '1px solid var(--color-green)' }} />
@@ -184,7 +184,7 @@ export const CompleteOptionChain: React.FC<CompleteOptionChainProps> = ({
         </span>
         {showGreeks && (
           <span style={{ color: 'var(--color-blue)' }}>
-            • Black-Scholes Greeks: <strong>Δ Delta</strong> (Price Sensitivity), <strong>Γ Gamma</strong> (Delta Accel.), <strong>Θ Theta</strong> (Time Decay / day), <strong>ν Vega</strong> (IV Change)
+            • <strong>Intrinsic Value</strong> (Real Value), <strong>Extrinsic Value</strong> (Theta Time Value), <strong>POP %</strong> (Probability of Expiring ITM), <strong>Greeks (Δ, Γ, Θ, ν)</strong>
           </span>
         )}
       </div>
@@ -204,13 +204,13 @@ export const CompleteOptionChain: React.FC<CompleteOptionChainProps> = ({
         <table style={{ width: '100%', tableLayout: 'auto' }}>
           <thead>
             <tr>
-              <th colSpan={showGreeks ? 10 : 6} style={{ textAlign: 'center', backgroundColor: '#E2F0E5', color: 'var(--color-green)', fontSize: '0.85rem', fontWeight: 700 }}>
+              <th colSpan={showGreeks ? 13 : 6} style={{ textAlign: 'center', backgroundColor: '#E2F0E5', color: 'var(--color-green)', fontSize: '0.85rem', fontWeight: 700 }}>
                 CALL OPTIONS (CE)
               </th>
               <th style={{ textAlign: 'center', backgroundColor: 'var(--accent-gold)', color: '#FFF', fontSize: '0.85rem', fontWeight: 700 }}>
                 STRIKE
               </th>
-              <th colSpan={showGreeks ? 10 : 6} style={{ textAlign: 'center', backgroundColor: '#FADBD8', color: 'var(--color-red)', fontSize: '0.85rem', fontWeight: 700 }}>
+              <th colSpan={showGreeks ? 13 : 6} style={{ textAlign: 'center', backgroundColor: '#FADBD8', color: 'var(--color-red)', fontSize: '0.85rem', fontWeight: 700 }}>
                 PUT OPTIONS (PE)
               </th>
             </tr>
@@ -220,6 +220,9 @@ export const CompleteOptionChain: React.FC<CompleteOptionChainProps> = ({
               <th>Volume</th>
               <th>IV %</th>
               {showGreeks && <>
+                <th title="Intrinsic Value">Intrinsic</th>
+                <th title="Extrinsic Time Value">Extrinsic</th>
+                <th title="Probability of Profit (Expiring ITM)">POP %</th>
                 <th title="Delta">Δ</th>
                 <th title="Gamma">Γ</th>
                 <th title="Theta">Θ</th>
@@ -233,6 +236,9 @@ export const CompleteOptionChain: React.FC<CompleteOptionChainProps> = ({
               <th>LTP (₹)</th>
               <th>Bid / Ask</th>
               {showGreeks && <>
+                <th title="Intrinsic Value">Intrinsic</th>
+                <th title="Extrinsic Time Value">Extrinsic</th>
+                <th title="Probability of Profit (Expiring ITM)">POP %</th>
                 <th title="Delta">Δ</th>
                 <th title="Gamma">Γ</th>
                 <th title="Theta">Θ</th>
@@ -250,6 +256,13 @@ export const CompleteOptionChain: React.FC<CompleteOptionChainProps> = ({
               const isCeItm = row.strikePrice < spotPrice;
               const isPeItm = row.strikePrice > spotPrice;
 
+              // Calculate Intrinsic & Extrinsic Values
+              const ceIntrinsic = Math.max(0, Math.round((spotPrice - row.strikePrice) * 100) / 100);
+              const ceExtrinsic = Math.max(0, Math.round((row.ceLtp - ceIntrinsic) * 100) / 100);
+
+              const peIntrinsic = Math.max(0, Math.round((row.strikePrice - spotPrice) * 100) / 100);
+              const peExtrinsic = Math.max(0, Math.round((row.peLtp - peIntrinsic) * 100) / 100);
+
               // Calculate Greeks on the fly if needed
               const ceGreeks = showGreeks ? (
                 row.ceDelta !== undefined ? { delta: row.ceDelta, gamma: row.ceGamma, theta: row.ceTheta, vega: row.ceVega }
@@ -260,6 +273,9 @@ export const CompleteOptionChain: React.FC<CompleteOptionChainProps> = ({
                 row.peDelta !== undefined ? { delta: row.peDelta, gamma: row.peGamma, theta: row.peTheta, vega: row.peVega }
                 : calculateGreeks(spotPrice, row.strikePrice, T, r, (row.peIv || 15) / 100, 'PE')
               ) : null;
+
+              const cePop = ceGreeks ? Math.round(Math.abs(ceGreeks.delta) * 100) : 0;
+              const pePop = peGreeks ? Math.round(Math.abs(peGreeks.delta) * 100) : 0;
 
               return (
                 <tr
@@ -285,9 +301,18 @@ export const CompleteOptionChain: React.FC<CompleteOptionChainProps> = ({
                     {row.ceIv > 0 ? `${row.ceIv.toFixed(2)}%` : '-'}
                   </td>
 
-                  {/* CE Greeks */}
+                  {/* CE Quant Metrics & Greeks */}
                   {showGreeks && ceGreeks && (
                     <>
+                      <td style={{ backgroundColor: isCeItm ? 'rgba(76, 175, 80, 0.08)' : 'transparent', fontSize: '0.78rem' }}>
+                        ₹{ceIntrinsic.toFixed(2)}
+                      </td>
+                      <td style={{ backgroundColor: isCeItm ? 'rgba(76, 175, 80, 0.08)' : 'transparent', fontSize: '0.78rem', color: 'var(--accent-gold-dark)' }}>
+                        ₹{ceExtrinsic.toFixed(2)}
+                      </td>
+                      <td style={{ backgroundColor: isCeItm ? 'rgba(76, 175, 80, 0.08)' : 'transparent', fontWeight: 700, color: cePop > 50 ? 'var(--color-green)' : 'var(--text-muted)' }}>
+                        {cePop}%
+                      </td>
                       <td style={{ backgroundColor: isCeItm ? 'rgba(76, 175, 80, 0.08)' : 'transparent', fontWeight: 600, color: 'var(--color-blue)' }}>
                         {ceGreeks.delta.toFixed(2)}
                       </td>
@@ -330,9 +355,18 @@ export const CompleteOptionChain: React.FC<CompleteOptionChainProps> = ({
                     {row.peBid > 0 ? `₹${row.peBid.toFixed(2)} / ₹${row.peAsk.toFixed(2)}` : '-'}
                   </td>
 
-                  {/* PE Greeks */}
+                  {/* PE Quant Metrics & Greeks */}
                   {showGreeks && peGreeks && (
                     <>
+                      <td style={{ backgroundColor: isPeItm ? 'rgba(244, 67, 54, 0.08)' : 'transparent', fontSize: '0.78rem' }}>
+                        ₹{peIntrinsic.toFixed(2)}
+                      </td>
+                      <td style={{ backgroundColor: isPeItm ? 'rgba(244, 67, 54, 0.08)' : 'transparent', fontSize: '0.78rem', color: 'var(--accent-gold-dark)' }}>
+                        ₹{peExtrinsic.toFixed(2)}
+                      </td>
+                      <td style={{ backgroundColor: isPeItm ? 'rgba(244, 67, 54, 0.08)' : 'transparent', fontWeight: 700, color: pePop > 50 ? 'var(--color-red)' : 'var(--text-muted)' }}>
+                        {pePop}%
+                      </td>
                       <td style={{ backgroundColor: isPeItm ? 'rgba(244, 67, 54, 0.08)' : 'transparent', fontWeight: 600, color: 'var(--color-blue)' }}>
                         {peGreeks.delta.toFixed(2)}
                       </td>

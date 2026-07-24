@@ -435,7 +435,11 @@ export function App() {
 
             {/* Table 4, 5 & 6: Support & Resistance */}
             <div id="sec-support">
-              <SupportResistance data={metrics.supportResistance} />
+              <SupportResistance
+                data={metrics.supportResistance}
+                atmCeLtp={metrics.completeChain.find(r => r.strike === metrics.chainSummary.atmStrike)?.ceLtp || 250}
+                atmPeLtp={metrics.completeChain.find(r => r.strike === metrics.chainSummary.atmStrike)?.peLtp || 250}
+              />
             </div>
 
             {/* Table 7 & 8: OI & Liquidity Analysis */}
