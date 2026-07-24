@@ -28,7 +28,7 @@ import type {
 } from './types';
 import { parseOptionChainCsv, parseFuturesCsv, parseOptCsv } from './utils/csvParser';
 import { calculateDashboardMetrics } from './utils/calculations';
-import { fetchYahooFinanceOHLCV } from './utils/yahooFinance';
+import { fetchYahooFinanceOHLCV, getYahooTickerForSymbol } from './utils/yahooFinance';
 import { loadStocksList } from './utils/stocksParser';
 
 export function App() {
@@ -38,7 +38,7 @@ export function App() {
   const [selectedSymbol, setSelectedSymbol] = useState<string>('NIFTY');
   const [selectedType, setSelectedType] = useState<'INDEX' | 'STOCK'>('INDEX');
 
-  // Start with clean empty file state (No hardcoded filenames pre-filled)
+  // Clean file upload state without pre-filled filenames
   const [filesState, setFilesState] = useState<UploadedFilesState>({
     optionChainFile: null,
     futuresFile: null,
@@ -49,7 +49,7 @@ export function App() {
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const timerRef = useRef<number | null>(null);
 
-  // Initial load for selected symbol (Clean Live/Market Data without pre-filling file upload cards)
+  // Initial load for selected symbol
   useEffect(() => {
     fetchSymbolData(selectedSymbol, selectedType);
   }, [selectedSymbol, selectedType]);
@@ -118,7 +118,7 @@ export function App() {
       const optData = parseOptCsv(optText);
 
       const spot = futuresData.spotPrice || (optionChainData.length > 0 ? optionChainData[0].underlyingValue : 0);
-      const yahooSymbol = selectedType === 'INDEX' ? (selectedSymbol === 'NIFTY' ? '^NSEI' : `^NSE${selectedSymbol}`) : `${selectedSymbol}.NS`;
+      const yahooSymbol = getYahooTickerForSymbol(selectedSymbol, selectedType);
       const freshHv = await fetchYahooFinanceOHLCV(spot, yahooSymbol);
 
       const calculated = calculateDashboardMetrics(
@@ -138,7 +138,7 @@ export function App() {
     }
   };
 
-  // Fetch data for selected stock or index without mutating filesState with fake filenames
+  // Fetch data for selected stock or index dynamically for ALL symbols
   const fetchSymbolData = async (symbol = 'NIFTY', type: 'INDEX' | 'STOCK' = 'INDEX') => {
     let success = false;
 
@@ -243,7 +243,7 @@ export function App() {
             timestamp: exchangeTimestamp
           };
 
-          const yahooSymbol = type === 'INDEX' ? (symbol === 'NIFTY' ? '^NSEI' : `^NSE${symbol}`) : `${symbol}.NS`;
+          const yahooSymbol = getYahooTickerForSymbol(symbol, type);
           const freshHv = await fetchYahooFinanceOHLCV(underlyingVal, yahooSymbol);
 
           const calculated = calculateDashboardMetrics(
@@ -263,7 +263,7 @@ export function App() {
       console.warn(`Proxy live fetch notice for ${symbol}:`, e);
     }
 
-    // 2. Fallback for ANY symbol when market is closed outside trading hours
+    // 2. Fallback for ANY symbol (NIFTY, FINNIFTY, BANKNIFTY, MIDCPNIFTY, RELIANCE, TCS, etc.)
     if (!success) {
       try {
         const futRes = await fetch('/MW-FO-nse50_fut-25-Jul-2026.csv');
@@ -279,13 +279,22 @@ export function App() {
           let futuresData = parseFuturesCsv(futText);
           const optData = parseOptCsv(optText);
 
-          // Get stock info from stocksList.csv if not NIFTY
-          const allStocks = await loadStocksList();
-          const stockInfo = allStocks.find(s => s.symbol === symbol.toUpperCase());
+          // Get exact real-time Yahoo ticker for selected symbol (e.g., NIFTY_FIN_SERVICE.NS for FINNIFTY)
+          const yahooSymbol = getYahooTickerForSymbol(symbol, type);
+          const baseSpot = optionChainData.length > 0 ? optionChainData[0].underlyingValue : 23767.45;
 
-          let targetSpot = futuresData.spotPrice || 23767.45;
-          if (stockInfo && stockInfo.cmp > 0) {
-            targetSpot = stockInfo.cmp;
+          // Fetch exact dynamic market spot price from Yahoo Finance
+          const freshHv = await fetchYahooFinanceOHLCV(baseSpot, yahooSymbol);
+
+          // Priority: 1. Yahoo Finance real market close, 2. stocksList CMP, 3. Base Spot
+          let targetSpot = freshHv.latestSpotPrice > 0 ? freshHv.latestSpotPrice : baseSpot;
+
+          if (targetSpot === baseSpot && symbol !== 'NIFTY') {
+            const allStocks = await loadStocksList();
+            const stockInfo = allStocks.find(s => s.symbol === symbol.toUpperCase());
+            if (stockInfo && stockInfo.cmp > 0) {
+              targetSpot = stockInfo.cmp;
+            }
           }
 
           futuresData = {
@@ -295,7 +304,6 @@ export function App() {
             ltp: targetSpot > 0 ? Math.round(targetSpot * 1.0026 * 100) / 100 : futuresData.ltp
           };
 
-          const baseSpot = optionChainData.length > 0 ? optionChainData[0].underlyingValue : 23767.45;
           const scaleRatio = targetSpot / baseSpot;
 
           const scaledOptionChain = optionChainData.map(r => ({
@@ -305,9 +313,6 @@ export function App() {
             peLtp: Math.round(r.peLtp * scaleRatio * 100) / 100,
             underlyingValue: targetSpot
           }));
-
-          const yahooSymbol = type === 'INDEX' ? (symbol === 'NIFTY' ? '^NSEI' : `^NSE${symbol}`) : `${symbol}.NS`;
-          const freshHv = await fetchYahooFinanceOHLCV(targetSpot, yahooSymbol);
 
           const calculated = calculateDashboardMetrics(
             scaledOptionChain,
@@ -319,7 +324,6 @@ export function App() {
           );
 
           setMetrics(calculated);
-          // Notice: filesState is kept clean (null) unless user manually uploads their own files!
         }
       } catch (err) {
         console.error(`Failed to load market data for ${symbol}:`, err);
@@ -352,7 +356,7 @@ export function App() {
   };
 
   const handleRefreshYahoo = async () => {
-    const yahooSymbol = selectedType === 'INDEX' ? (selectedSymbol === 'NIFTY' ? '^NSEI' : `^NSE${selectedSymbol}`) : `${selectedSymbol}.NS`;
+    const yahooSymbol = getYahooTickerForSymbol(selectedSymbol, selectedType);
     const freshHv = await fetchYahooFinanceOHLCV(metrics?.marketSummary.spotPrice || 0, yahooSymbol);
     if (metrics) {
       setMetrics(prev => prev ? {
@@ -407,7 +411,6 @@ export function App() {
           onManualLiveSync={() => fetchSymbolData(selectedSymbol, selectedType)}
         />
 
-        {/* Step 1: Manual File Upload (Kept clean without pre-filled filenames) */}
         <FileUpload
           filesState={filesState}
           onFileSelect={handleFileSelect}

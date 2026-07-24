@@ -1,5 +1,9 @@
 import type { HistoricalVolatilityData, OhlcvCandle } from '../types';
 
+export interface ExtendedVolatilityData extends HistoricalVolatilityData {
+  latestSpotPrice: number;
+}
+
 /**
  * Generate dynamic OHLCV candles based on real current spot price
  */
@@ -69,12 +73,29 @@ export const calculateHvFromCandles = (candles: OhlcvCandle[]): { annualizedHv: 
 };
 
 /**
+ * Helper to map Symbol name to exact Yahoo Finance Ticker
+ */
+export const getYahooTickerForSymbol = (symbol: string, type: 'INDEX' | 'STOCK'): string => {
+  const sym = symbol.toUpperCase().trim();
+  if (type === 'INDEX') {
+    if (sym === 'NIFTY') return '^NSEI';
+    if (sym === 'BANKNIFTY') return '^NSEBANK';
+    if (sym === 'FINNIFTY') return 'NIFTY_FIN_SERVICE.NS';
+    if (sym === 'MIDCPNIFTY') return '^NSEMDCP';
+    if (sym === 'NIFTYIT') return '^CNXIT';
+    return `^NSE${sym}`;
+  } else {
+    return `${sym}.NS`;
+  }
+};
+
+/**
  * Fetches 1-month daily OHLCV data for specified ticker symbol dynamically
  */
 export const fetchYahooFinanceOHLCV = async (
   currentSpot: number,
   symbol: string = '^NSEI'
-): Promise<HistoricalVolatilityData> => {
+): Promise<ExtendedVolatilityData> => {
   try {
     const encodedSymbol = encodeURIComponent(symbol);
     const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodedSymbol}?range=1mo&interval=1d`;
@@ -121,23 +142,27 @@ export const fetchYahooFinanceOHLCV = async (
     }
 
     const { annualizedHv, dailyStdDev } = calculateHvFromCandles(candles);
+    const latestSpotPrice = candles.length > 0 ? candles[candles.length - 1].close : currentSpot;
 
     return {
       annualizedHv,
       dailyStdDev,
       lookbackDays: candles.length,
       candles,
+      latestSpotPrice: latestSpotPrice > 0 ? latestSpotPrice : currentSpot,
       source: `Yahoo Finance API (${symbol})`
     };
   } catch (err) {
     const fallbackCandles = generateFallbackOhlcv(currentSpot);
     const { annualizedHv, dailyStdDev } = calculateHvFromCandles(fallbackCandles);
+    const latestSpotPrice = fallbackCandles.length > 0 ? fallbackCandles[fallbackCandles.length - 1].close : currentSpot;
 
     return {
       annualizedHv,
       dailyStdDev,
       lookbackDays: fallbackCandles.length,
       candles: fallbackCandles,
+      latestSpotPrice,
       source: 'Calculated Real OHLCV'
     };
   }
