@@ -1,3 +1,5 @@
+import { calculateGreeks } from './blackScholes';
+
 export interface LtpTargetRow {
   strike: number;
   isAtm: boolean;
@@ -8,6 +10,10 @@ export interface LtpTargetRow {
   ceDiffRupees: number;
   ceDiffPct: number;
   ceReversalLevel: number; // EOR (Extension of Resistance)
+  ceTargetIntrinsic: number;
+  ceTargetExtrinsic: number;
+  ceTargetPop: number;
+  ceTargetTouch: number;
   
   // Put Option Target Metrics
   peCurrentLtp: number;
@@ -15,6 +21,10 @@ export interface LtpTargetRow {
   peDiffRupees: number;
   peDiffPct: number;
   peReversalLevel: number; // EOS (Extension of Support)
+  peTargetIntrinsic: number;
+  peTargetExtrinsic: number;
+  peTargetPop: number;
+  peTargetTouch: number;
 }
 
 /**
@@ -124,6 +134,22 @@ export const calculateLtpTargetMatrix = (
     const ceReversalLevel = Math.round(strike + ceTargetLtp);
     const peReversalLevel = Math.round(strike - peTargetLtp);
 
+    // Target Intrinsic & Extrinsic Values
+    const ceTargetIntrinsic = Math.max(0, Math.round((targetSpot - strike) * 100) / 100);
+    const ceTargetExtrinsic = Math.max(0, Math.round((ceTargetLtp - ceTargetIntrinsic) * 100) / 100);
+
+    const peTargetIntrinsic = Math.max(0, Math.round((strike - targetSpot) * 100) / 100);
+    const peTargetExtrinsic = Math.max(0, Math.round((peTargetLtp - peTargetIntrinsic) * 100) / 100);
+
+    // Target POP % and Touch %
+    const ceTargetGreeks = calculateGreeks(targetSpot, strike, targetT, r, ceIvTarget, 'CE');
+    const ceTargetPop = Math.round(Math.abs(ceTargetGreeks.delta) * 100);
+    const ceTargetTouch = Math.min(100, ceTargetPop * 2);
+
+    const peTargetGreeks = calculateGreeks(targetSpot, strike, targetT, r, peIvTarget, 'PE');
+    const peTargetPop = Math.round(Math.abs(peTargetGreeks.delta) * 100);
+    const peTargetTouch = Math.min(100, peTargetPop * 2);
+
     return {
       strike,
       isAtm: strike === atmStrike,
@@ -132,11 +158,19 @@ export const calculateLtpTargetMatrix = (
       ceDiffRupees,
       ceDiffPct,
       ceReversalLevel,
+      ceTargetIntrinsic,
+      ceTargetExtrinsic,
+      ceTargetPop,
+      ceTargetTouch,
       peCurrentLtp: peBasePrice,
       peTargetLtp,
       peDiffRupees,
       peDiffPct,
-      peReversalLevel
+      peReversalLevel,
+      peTargetIntrinsic,
+      peTargetExtrinsic,
+      peTargetPop,
+      peTargetTouch
     };
   });
 };

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calculator, RefreshCw, TrendingUp, TrendingDown, Filter, HelpCircle, ChevronDown, ChevronUp, Info } from 'lucide-react';
+import { Calculator, RefreshCw, TrendingUp, TrendingDown, Filter, HelpCircle, ChevronDown, ChevronUp, Info, Sparkles } from 'lucide-react';
 import { calculateLtpTargetMatrix } from '../utils/ltpCalculator';
 
 interface LtpCalculatorSectionProps {
@@ -20,6 +20,7 @@ export const LtpCalculatorSection: React.FC<LtpCalculatorSectionProps> = ({
   const [hoursPassed, setHoursPassed] = useState<number>(0);
   const [strikeFilter, setStrikeFilter] = useState<'ATM_5' | 'ATM_10' | 'ATM_15' | 'ALL'>('ATM_10');
   const [showGuide, setShowGuide] = useState<boolean>(true);
+  const [showQuantMetrics, setShowQuantMetrics] = useState<boolean>(true);
 
   // Update targetSpot when currentSpot changes initially
   useEffect(() => {
@@ -84,11 +85,33 @@ export const LtpCalculatorSection: React.FC<LtpCalculatorSectionProps> = ({
             Step 18: Quantitative LTP Target & Reversal Calculator Engine
           </h2>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            Simulate option price changes (LTP), theoretical fair values, and support/resistance reversal levels (EOS/EOR).
+            Simulate option price changes (LTP), target intrinsic/extrinsic values, POP %, and support/resistance reversal levels (EOS/EOR).
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+          {/* Quant Metrics Toggle Button */}
+          <button
+            onClick={() => setShowQuantMetrics(!showQuantMetrics)}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 14px',
+              borderRadius: '6px',
+              fontSize: '0.82rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              backgroundColor: showQuantMetrics ? 'var(--color-blue)' : 'var(--bg-main)',
+              color: showQuantMetrics ? '#FFF' : 'var(--text-main)',
+              border: `1.5px solid ${showQuantMetrics ? 'var(--color-blue)' : 'var(--border-color)'}`,
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <Sparkles size={15} />
+            {showQuantMetrics ? "Target Quant Metrics ON" : "+ Show Target Intrinsic/Extrinsic & POP %"}
+          </button>
+
           {/* Guide Toggle */}
           <button
             onClick={() => setShowGuide(!showGuide)}
@@ -147,7 +170,7 @@ export const LtpCalculatorSection: React.FC<LtpCalculatorSectionProps> = ({
             <div>
               <strong style={{ color: '#E65100' }}>1. Spot Price Simulator (Delta & Gamma):</strong>
               <p style={{ marginTop: '2px', color: 'var(--text-main)' }}>
-                Move the <strong>Target Spot Price</strong> slider or type a target level (e.g. Nifty +100 pts). The calculator uses <strong>Black-Scholes Delta ($\Delta$) and Gamma ($\Gamma$)</strong> to compute the exact theoretical LTP for every Call & Put strike.
+                Move the <strong>Target Spot Price</strong> slider or type a target level (e.g. Nifty +100 pts). The calculator uses <strong>Black-Scholes Delta and Gamma</strong> to compute the exact theoretical LTP for every Call & Put strike.
               </p>
             </div>
 
@@ -394,13 +417,13 @@ export const LtpCalculatorSection: React.FC<LtpCalculatorSectionProps> = ({
         <table style={{ width: '100%', tableLayout: 'auto' }}>
           <thead>
             <tr>
-              <th colSpan={5} style={{ textAlign: 'center', backgroundColor: '#E2F0E5', color: 'var(--color-green)', fontSize: '0.85rem', fontWeight: 700 }}>
+              <th colSpan={showQuantMetrics ? 9 : 5} style={{ textAlign: 'center', backgroundColor: '#E2F0E5', color: 'var(--color-green)', fontSize: '0.85rem', fontWeight: 700 }}>
                 CALL OPTIONS (CE) TARGET LTP & REVERSAL
               </th>
               <th style={{ textAlign: 'center', backgroundColor: 'var(--accent-gold)', color: '#FFF', fontSize: '0.85rem', fontWeight: 700 }}>
                 STRIKE
               </th>
-              <th colSpan={5} style={{ textAlign: 'center', backgroundColor: '#FADBD8', color: 'var(--color-red)', fontSize: '0.85rem', fontWeight: 700 }}>
+              <th colSpan={showQuantMetrics ? 9 : 5} style={{ textAlign: 'center', backgroundColor: '#FADBD8', color: 'var(--color-red)', fontSize: '0.85rem', fontWeight: 700 }}>
                 PUT OPTIONS (PE) TARGET LTP & REVERSAL
               </th>
             </tr>
@@ -409,12 +432,26 @@ export const LtpCalculatorSection: React.FC<LtpCalculatorSectionProps> = ({
               <th>Target LTP</th>
               <th>₹ PnL Change</th>
               <th>% PnL</th>
+              {showQuantMetrics && <>
+                <th title="Target Intrinsic Value">Intrinsic</th>
+                <th title="Target Extrinsic Time Value">Extrinsic</th>
+                <th title="Target Probability of Expiring ITM">POP %</th>
+                <th title="Target Touch Probability">Touch %</th>
+              </>}
               <th>EOR Reversal</th>
+
               <th style={{ textAlign: 'center' }}>Price</th>
+
               <th>Current LTP</th>
               <th>Target LTP</th>
               <th>₹ PnL Change</th>
               <th>% PnL</th>
+              {showQuantMetrics && <>
+                <th title="Target Intrinsic Value">Intrinsic</th>
+                <th title="Target Extrinsic Time Value">Extrinsic</th>
+                <th title="Target Probability of Expiring ITM">POP %</th>
+                <th title="Target Touch Probability">Touch %</th>
+              </>}
               <th>EOS Reversal</th>
             </tr>
           </thead>
@@ -436,6 +473,16 @@ export const LtpCalculatorSection: React.FC<LtpCalculatorSectionProps> = ({
                 <td style={{ fontWeight: 700, color: row.ceDiffPct >= 0 ? 'var(--color-green)' : 'var(--color-red)' }}>
                   {row.ceDiffPct >= 0 ? `+${row.ceDiffPct.toFixed(1)}%` : `${row.ceDiffPct.toFixed(1)}%`}
                 </td>
+
+                {showQuantMetrics && (
+                  <>
+                    <td style={{ fontSize: '0.78rem' }}>₹{row.ceTargetIntrinsic.toFixed(2)}</td>
+                    <td style={{ fontSize: '0.78rem', color: 'var(--accent-gold-dark)' }}>₹{row.ceTargetExtrinsic.toFixed(2)}</td>
+                    <td style={{ fontWeight: 700, color: row.ceTargetPop > 50 ? 'var(--color-green)' : 'var(--text-muted)' }}>{row.ceTargetPop}%</td>
+                    <td style={{ fontWeight: 600, color: row.ceTargetTouch > 75 ? 'var(--color-green)' : 'var(--text-muted)' }}>{row.ceTargetTouch}%</td>
+                  </>
+                )}
+
                 <td style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>
                   ₹{row.ceReversalLevel.toLocaleString('en-IN')}
                 </td>
@@ -461,6 +508,16 @@ export const LtpCalculatorSection: React.FC<LtpCalculatorSectionProps> = ({
                 <td style={{ fontWeight: 700, color: row.peDiffPct >= 0 ? 'var(--color-green)' : 'var(--color-red)' }}>
                   {row.peDiffPct >= 0 ? `+${row.peDiffPct.toFixed(1)}%` : `${row.peDiffPct.toFixed(1)}%`}
                 </td>
+
+                {showQuantMetrics && (
+                  <>
+                    <td style={{ fontSize: '0.78rem' }}>₹{row.peTargetIntrinsic.toFixed(2)}</td>
+                    <td style={{ fontSize: '0.78rem', color: 'var(--accent-gold-dark)' }}>₹{row.peTargetExtrinsic.toFixed(2)}</td>
+                    <td style={{ fontWeight: 700, color: row.peTargetPop > 50 ? 'var(--color-red)' : 'var(--text-muted)' }}>{row.peTargetPop}%</td>
+                    <td style={{ fontWeight: 600, color: row.peTargetTouch > 75 ? 'var(--color-red)' : 'var(--text-muted)' }}>{row.peTargetTouch}%</td>
+                  </>
+                )}
+
                 <td style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>
                   ₹{row.peReversalLevel.toLocaleString('en-IN')}
                 </td>
