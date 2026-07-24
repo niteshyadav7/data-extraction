@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutGrid, BarChart2, Shield, TrendingUp, Zap, Target, Table, AlertTriangle } from 'lucide-react';
+import { LayoutGrid, BarChart2, Shield, TrendingUp, Zap, Target, Table, Calculator, AlertTriangle } from 'lucide-react';
 
 export const StickyNavBar: React.FC = () => {
   const [activeSection, setActiveSection] = useState<string>('sec-summary');
@@ -12,6 +12,7 @@ export const StickyNavBar: React.FC = () => {
     { id: 'sec-greeks', label: 'IV & Greeks', icon: Zap },
     { id: 'sec-expected', label: 'Expected Move', icon: Target },
     { id: 'sec-chain', label: 'Option Chain', icon: Table },
+    { id: 'sec-ltp', label: 'LTP Calculator', icon: Calculator },
     { id: 'sec-warnings', label: 'Warnings', icon: AlertTriangle },
   ];
 

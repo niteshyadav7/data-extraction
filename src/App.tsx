@@ -18,6 +18,7 @@ import { HVSection } from './components/HVSection';
 import { HVvsIVSection } from './components/HVvsIVSection';
 import { MostActiveSection } from './components/MostActiveSection';
 import { CompleteOptionChain } from './components/CompleteOptionChain';
+import { LtpCalculatorSection } from './components/LtpCalculatorSection';
 import { WarningsSection } from './components/WarningsSection';
 
 import type {
@@ -471,6 +472,16 @@ export function App() {
               <MostActiveSection data={metrics.mostActive} />
               <CompleteOptionChain
                 data={metrics.completeChain}
+                daysToExpiry={metrics.marketSummary.daysToExpiry}
+                riskFreeRate={metrics.riskFreeRate}
+              />
+            </div>
+
+            {/* Table 18: Step 18 Dedicated LTP & Reversal Target Calculator */}
+            <div id="sec-ltp">
+              <LtpCalculatorSection
+                optionChain={metrics.completeChain}
+                currentSpot={metrics.marketSummary.spotPrice}
                 daysToExpiry={metrics.marketSummary.daysToExpiry}
                 riskFreeRate={metrics.riskFreeRate}
               />
