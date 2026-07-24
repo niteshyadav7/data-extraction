@@ -392,7 +392,7 @@ export function App() {
         onReset={handleReset}
       />
 
-      <main style={{ maxWidth: '1400px', margin: '0 auto', padding: '24px 16px' }}>
+      <main style={{ width: '100%', maxWidth: '100%', margin: '0 auto', padding: '24px 28px' }}>
         <ConfigBar
           riskFreeRate={riskFreeRate}
           onRateChange={handleRiskFreeRateChange}

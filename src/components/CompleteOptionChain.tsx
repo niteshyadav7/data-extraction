@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { CompleteChainRow, RawOptionChainRow } from '../types';
-import { Filter } from 'lucide-react';
+import { Filter, Maximize2, Minimize2 } from 'lucide-react';
 
 interface CompleteOptionChainProps {
   data: CompleteChainRow[] | RawOptionChainRow[];
@@ -8,6 +8,7 @@ interface CompleteOptionChainProps {
 
 export const CompleteOptionChain: React.FC<CompleteOptionChainProps> = ({ data }) => {
   const [strikeFilter, setStrikeFilter] = useState<'ATM_5' | 'ATM_10' | 'ATM_15' | 'ALL'>('ATM_10');
+  const [isFullHeight, setIsFullHeight] = useState<boolean>(true);
 
   if (!data || data.length === 0) return null;
 
@@ -70,41 +71,54 @@ export const CompleteOptionChain: React.FC<CompleteOptionChainProps> = ({ data }
   }
 
   return (
-    <div className="card" style={{ marginBottom: '24px' }}>
+    <div className="card" style={{ marginBottom: '24px', width: '100%' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          <h2 style={{ fontSize: '1.1rem', fontWeight: 600 }}>
+          <h2 style={{ fontSize: '1.15rem', fontWeight: 700 }}>
             Complete Option Chain Matrix ({filteredRows.length} Strikes)
           </h2>
-          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
             ATM Strike: <strong>{atmStrike}</strong> | Spot Price: <strong>₹{spotPrice.toLocaleString('en-IN')}</strong>
           </p>
         </div>
 
-        {/* Dynamic Strike Range Filter */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Filter size={16} color="var(--text-muted)" />
-          <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)' }}>Range:</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {/* Dynamic Strike Range Filter */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Filter size={16} color="var(--text-muted)" />
+            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)' }}>Range:</span>
 
-          <select
-            value={strikeFilter}
-            onChange={(e: any) => setStrikeFilter(e.target.value)}
-            style={{
-              padding: '6px 12px',
-              borderRadius: '6px',
-              border: '1.5px solid var(--border-color)',
-              backgroundColor: 'var(--bg-main)',
-              color: 'var(--text-main)',
-              fontSize: '0.85rem',
-              fontWeight: 600,
-              cursor: 'pointer'
-            }}
+            <select
+              value={strikeFilter}
+              onChange={(e: any) => setStrikeFilter(e.target.value)}
+              style={{
+                padding: '6px 12px',
+                borderRadius: '6px',
+                border: '1.5px solid var(--border-color)',
+                backgroundColor: 'var(--bg-main)',
+                color: 'var(--text-main)',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              <option value="ATM_5">ATM ± 5 Strikes (Focused)</option>
+              <option value="ATM_10">ATM ± 10 Strikes (Standard)</option>
+              <option value="ATM_15">ATM ± 15 Strikes (Wide)</option>
+              <option value="ALL">All Strikes ({rows.length})</option>
+            </select>
+          </div>
+
+          {/* Full Height Toggle */}
+          <button
+            onClick={() => setIsFullHeight(!isFullHeight)}
+            className="btn-secondary"
+            style={{ padding: '6px 12px', fontSize: '0.8rem' }}
+            title={isFullHeight ? "Collapse table scroll view" : "Expand full table view without scrollbar"}
           >
-            <option value="ATM_5">ATM ± 5 Strikes (Focused)</option>
-            <option value="ATM_10">ATM ± 10 Strikes (Standard)</option>
-            <option value="ATM_15">ATM ± 15 Strikes (Wide)</option>
-            <option value="ALL">All Strikes ({rows.length})</option>
-          </select>
+            {isFullHeight ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+            {isFullHeight ? "Compact View" : "Full Table View"}
+          </button>
         </div>
       </div>
 
@@ -124,17 +138,28 @@ export const CompleteOptionChain: React.FC<CompleteOptionChainProps> = ({ data }
         </span>
       </div>
 
-      <div className="table-container" style={{ maxHeight: '600px', overflowY: 'auto' }}>
-        <table>
+      {/* Table Container - Spans Full Width & Optional Full Height */}
+      <div
+        className="table-container"
+        style={{
+          width: '100%',
+          maxHeight: isFullHeight ? 'none' : '650px',
+          overflowY: isFullHeight ? 'visible' : 'auto',
+          overflowX: 'auto',
+          borderRadius: '6px',
+          border: '1px solid var(--border-color)'
+        }}
+      >
+        <table style={{ width: '100%', tableLayout: 'auto' }}>
           <thead>
             <tr>
-              <th colSpan={6} style={{ textAlign: 'center', backgroundColor: '#E2F0E5', color: 'var(--color-green)' }}>
+              <th colSpan={6} style={{ textAlign: 'center', backgroundColor: '#E2F0E5', color: 'var(--color-green)', fontSize: '0.85rem', fontWeight: 700 }}>
                 CALL OPTIONS (CE)
               </th>
-              <th style={{ textAlign: 'center', backgroundColor: 'var(--accent-gold)', color: '#FFF' }}>
+              <th style={{ textAlign: 'center', backgroundColor: 'var(--accent-gold)', color: '#FFF', fontSize: '0.85rem', fontWeight: 700 }}>
                 STRIKE
               </th>
-              <th colSpan={6} style={{ textAlign: 'center', backgroundColor: '#FADBD8', color: 'var(--color-red)' }}>
+              <th colSpan={6} style={{ textAlign: 'center', backgroundColor: '#FADBD8', color: 'var(--color-red)', fontSize: '0.85rem', fontWeight: 700 }}>
                 PUT OPTIONS (PE)
               </th>
             </tr>
