@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Header } from './components/Header';
 import { FileUpload } from './components/FileUpload';
 import { ConfigBar } from './components/ConfigBar';
+import { StickyNavBar } from './components/StickyNavBar';
 import { MarketSummary } from './components/MarketSummary';
 import { OptionChainSummary } from './components/OptionChainSummary';
 import { PCRSection } from './components/PCRSection';
@@ -263,7 +264,7 @@ export function App() {
       console.warn(`Proxy live fetch notice for ${symbol}:`, e);
     }
 
-    // 2. Fallback for ANY symbol (NIFTY, FINNIFTY, BANKNIFTY, MIDCPNIFTY, RELIANCE, TCS, etc.)
+    // 2. Fallback for ANY symbol
     if (!success) {
       try {
         const futRes = await fetch('/MW-FO-nse50_fut-25-Jul-2026.csv');
@@ -279,14 +280,11 @@ export function App() {
           let futuresData = parseFuturesCsv(futText);
           const optData = parseOptCsv(optText);
 
-          // Get exact real-time Yahoo ticker for selected symbol (e.g., NIFTY_FIN_SERVICE.NS for FINNIFTY)
           const yahooSymbol = getYahooTickerForSymbol(symbol, type);
           const baseSpot = optionChainData.length > 0 ? optionChainData[0].underlyingValue : 23767.45;
 
-          // Fetch exact dynamic market spot price from Yahoo Finance
           const freshHv = await fetchYahooFinanceOHLCV(baseSpot, yahooSymbol);
 
-          // Priority: 1. Yahoo Finance real market close, 2. stocksList CMP, 3. Base Spot
           let targetSpot = freshHv.latestSpotPrice > 0 ? freshHv.latestSpotPrice : baseSpot;
 
           if (targetSpot === baseSpot && symbol !== 'NIFTY') {
@@ -411,6 +409,8 @@ export function App() {
           onManualLiveSync={() => fetchSymbolData(selectedSymbol, selectedType)}
         />
 
+        {metrics && <StickyNavBar />}
+
         <FileUpload
           filesState={filesState}
           onFileSelect={handleFileSelect}
@@ -421,53 +421,61 @@ export function App() {
         {metrics && (
           <>
             {/* Table 1: Market Summary */}
-            <MarketSummary data={metrics.marketSummary} />
+            <div id="sec-summary">
+              <MarketSummary data={metrics.marketSummary} />
+              <OptionChainSummary data={metrics.chainSummary} />
+            </div>
 
-            {/* Table 2 & 3: Option Chain Summary & PCR */}
-            <OptionChainSummary data={metrics.chainSummary} />
-            <PCRSection data={metrics.pcrAnalysis} />
+            {/* Table 2 & 3: PCR & Max Pain */}
+            <div id="sec-pcr">
+              <PCRSection data={metrics.pcrAnalysis} />
+              <MaxPainSection data={metrics.maxPain} spotPrice={metrics.marketSummary.spotPrice} />
+            </div>
 
-            {/* Table 4, 5 & 6: Max Pain, Support & Resistance */}
-            <MaxPainSection data={metrics.maxPain} spotPrice={metrics.marketSummary.spotPrice} />
-            <SupportResistance data={metrics.supportResistance} />
+            {/* Table 4, 5 & 6: Support & Resistance */}
+            <div id="sec-support">
+              <SupportResistance data={metrics.supportResistance} />
+            </div>
 
-            {/* Table 7: OI Analysis */}
-            <OIAnalysis data={metrics.oiAnalysis} />
+            {/* Table 7 & 8: OI & Liquidity Analysis */}
+            <div id="sec-oi">
+              <OIAnalysis data={metrics.oiAnalysis} />
+              <LiquiditySection data={metrics.liquidityAnalysis} />
+            </div>
 
-            {/* Table 8: Liquidity Analysis */}
-            <LiquiditySection data={metrics.liquidityAnalysis} />
+            {/* Table 9 & 10: IV & Black-Scholes Greeks */}
+            <div id="sec-greeks">
+              <IVAnalysis data={metrics.ivAnalysis} />
+              <GreeksTableSection
+                data={metrics.greeksTable}
+                atmStrike={metrics.chainSummary.atmStrike}
+                riskFreeRate={metrics.riskFreeRate}
+              />
+            </div>
 
-            {/* Table 9: IV Analysis */}
-            <IVAnalysis data={metrics.ivAnalysis} />
+            {/* Table 11 & 12: Expected Move & Futures */}
+            <div id="sec-expected">
+              <ExpectedMoveSection
+                data={metrics.expectedMove}
+                spotPrice={metrics.marketSummary.spotPrice}
+                daysToExpiry={metrics.marketSummary.daysToExpiry}
+                atmIv={metrics.ivAnalysis.atmIv}
+              />
+              <FuturesAnalysis data={metrics.futuresAnalysis} />
+              <HVSection data={metrics.historicalVolatility} onRefreshYahoo={handleRefreshYahoo} />
+              <HVvsIVSection data={metrics.hvVsIv} />
+            </div>
 
-            {/* Table 10: Black-Scholes Greeks */}
-            <GreeksTableSection
-              data={metrics.greeksTable}
-              atmStrike={metrics.chainSummary.atmStrike}
-              riskFreeRate={metrics.riskFreeRate}
-            />
+            {/* Table 15 & 16: Complete Option Chain */}
+            <div id="sec-chain">
+              <MostActiveSection data={metrics.mostActive} />
+              <CompleteOptionChain data={metrics.completeChain} />
+            </div>
 
-            {/* Table 11: Expected Move */}
-            <ExpectedMoveSection
-              data={metrics.expectedMove}
-              spotPrice={metrics.marketSummary.spotPrice}
-              daysToExpiry={metrics.marketSummary.daysToExpiry}
-              atmIv={metrics.ivAnalysis.atmIv}
-            />
-
-            {/* Table 12: Futures Analysis */}
-            <FuturesAnalysis data={metrics.futuresAnalysis} />
-
-            {/* Table 13 & 14: Historical Volatility & HV vs IV Comparison */}
-            <HVSection data={metrics.historicalVolatility} onRefreshYahoo={handleRefreshYahoo} />
-            <HVvsIVSection data={metrics.hvVsIv} />
-
-            {/* Table 15 & 16: Most Active Options & Complete Option Chain */}
-            <MostActiveSection data={metrics.mostActive} />
-            <CompleteOptionChain data={metrics.completeChain} />
-
-            {/* Step 13: Data Audit Warnings */}
-            <WarningsSection warnings={metrics.warnings} />
+            {/* Step 17: Data Audit Warnings */}
+            <div id="sec-warnings">
+              <WarningsSection warnings={metrics.warnings} />
+            </div>
           </>
         )}
       </main>
