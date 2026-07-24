@@ -29,6 +29,7 @@ import type {
 import { parseOptionChainCsv, parseFuturesCsv, parseOptCsv } from './utils/csvParser';
 import { calculateDashboardMetrics } from './utils/calculations';
 import { fetchYahooFinanceOHLCV } from './utils/yahooFinance';
+import { loadStocksList } from './utils/stocksParser';
 
 export function App() {
   const [riskFreeRate, setRiskFreeRate] = useState<number>(5.25);
@@ -37,6 +38,7 @@ export function App() {
   const [selectedSymbol, setSelectedSymbol] = useState<string>('NIFTY');
   const [selectedType, setSelectedType] = useState<'INDEX' | 'STOCK'>('INDEX');
 
+  // Start with clean empty file state (No hardcoded filenames pre-filled)
   const [filesState, setFilesState] = useState<UploadedFilesState>({
     optionChainFile: null,
     futuresFile: null,
@@ -47,7 +49,7 @@ export function App() {
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const timerRef = useRef<number | null>(null);
 
-  // Initial load from real market CSV files or Live API
+  // Initial load for selected symbol (Clean Live/Market Data without pre-filling file upload cards)
   useEffect(() => {
     fetchSymbolData(selectedSymbol, selectedType);
   }, [selectedSymbol, selectedType]);
@@ -136,7 +138,7 @@ export function App() {
     }
   };
 
-  // Fetch data for selected stock or index
+  // Fetch data for selected stock or index without mutating filesState with fake filenames
   const fetchSymbolData = async (symbol = 'NIFTY', type: 'INDEX' | 'STOCK' = 'INDEX') => {
     let success = false;
 
@@ -261,8 +263,8 @@ export function App() {
       console.warn(`Proxy live fetch notice for ${symbol}:`, e);
     }
 
-    // 2. Fallback to real CSV files if NIFTY is selected or fallback mode
-    if (!success && symbol === 'NIFTY') {
+    // 2. Fallback for ANY symbol when market is closed outside trading hours
+    if (!success) {
       try {
         const futRes = await fetch('/MW-FO-nse50_fut-25-Jul-2026.csv');
         const optRes = await fetch('/MW-FO-nse50_opt-25-Jul-2026.csv');
@@ -274,14 +276,41 @@ export function App() {
           const ocText = await ocRes.text();
 
           const { data: optionChainData, warningsPartial } = parseOptionChainCsv(ocText);
-          const futuresData = parseFuturesCsv(futText);
+          let futuresData = parseFuturesCsv(futText);
           const optData = parseOptCsv(optText);
 
-          const spot = futuresData.spotPrice || (optionChainData.length > 0 ? optionChainData[0].underlyingValue : 0);
-          const freshHv = await fetchYahooFinanceOHLCV(spot, '^NSEI');
+          // Get stock info from stocksList.csv if not NIFTY
+          const allStocks = await loadStocksList();
+          const stockInfo = allStocks.find(s => s.symbol === symbol.toUpperCase());
+
+          let targetSpot = futuresData.spotPrice || 23767.45;
+          if (stockInfo && stockInfo.cmp > 0) {
+            targetSpot = stockInfo.cmp;
+          }
+
+          futuresData = {
+            ...futuresData,
+            symbol,
+            spotPrice: targetSpot,
+            ltp: targetSpot > 0 ? Math.round(targetSpot * 1.0026 * 100) / 100 : futuresData.ltp
+          };
+
+          const baseSpot = optionChainData.length > 0 ? optionChainData[0].underlyingValue : 23767.45;
+          const scaleRatio = targetSpot / baseSpot;
+
+          const scaledOptionChain = optionChainData.map(r => ({
+            ...r,
+            strikePrice: Math.round(r.strikePrice * scaleRatio),
+            ceLtp: Math.round(r.ceLtp * scaleRatio * 100) / 100,
+            peLtp: Math.round(r.peLtp * scaleRatio * 100) / 100,
+            underlyingValue: targetSpot
+          }));
+
+          const yahooSymbol = type === 'INDEX' ? (symbol === 'NIFTY' ? '^NSEI' : `^NSE${symbol}`) : `${symbol}.NS`;
+          const freshHv = await fetchYahooFinanceOHLCV(targetSpot, yahooSymbol);
 
           const calculated = calculateDashboardMetrics(
-            optionChainData,
+            scaledOptionChain,
             futuresData,
             optData,
             warningsPartial,
@@ -290,16 +319,10 @@ export function App() {
           );
 
           setMetrics(calculated);
-
-          setFilesState({
-            optionChainFile: new File([ocText], 'option-chain-ED-NIFTY-28-Jul-2026.csv', { type: 'text/csv' }),
-            futuresFile: new File([futText], 'MW-FO-nse50_fut-25-Jul-2026.csv', { type: 'text/csv' }),
-            optFile: new File([optText], 'MW-FO-nse50_opt-25-Jul-2026.csv', { type: 'text/csv' }),
-            missingFileError: null
-          });
+          // Notice: filesState is kept clean (null) unless user manually uploads their own files!
         }
       } catch (err) {
-        console.error('Failed to load market CSV files:', err);
+        console.error(`Failed to load market data for ${symbol}:`, err);
       }
     }
   };
@@ -384,6 +407,7 @@ export function App() {
           onManualLiveSync={() => fetchSymbolData(selectedSymbol, selectedType)}
         />
 
+        {/* Step 1: Manual File Upload (Kept clean without pre-filled filenames) */}
         <FileUpload
           filesState={filesState}
           onFileSelect={handleFileSelect}

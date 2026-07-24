@@ -1,5 +1,5 @@
 import React from 'react';
-import { UploadCloud, CheckCircle, AlertTriangle, FileSpreadsheet, Play } from 'lucide-react';
+import { UploadCloud, CheckCircle, AlertTriangle, FileSpreadsheet, Play, FilePlus } from 'lucide-react';
 import type { UploadedFilesState } from '../types';
 
 interface FileUploadProps {
@@ -18,21 +18,21 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   const fileConfigs = [
     {
       key: 'optionChainFile' as const,
-      name: filesState.optionChainFile ? filesState.optionChainFile.name : 'option-chain.csv',
+      placeholder: 'Select Option Chain CSV',
       label: '1. Option Chain CSV',
       desc: 'e.g. option-chain-ED-NIFTY-*.csv or option-chain.csv',
       file: filesState.optionChainFile,
     },
     {
       key: 'futuresFile' as const,
-      name: filesState.futuresFile ? filesState.futuresFile.name : 'nse50_fut.csv',
+      placeholder: 'Select NSE 50 Futures CSV',
       label: '2. NSE 50 Futures CSV',
       desc: 'e.g. MW-FO-nse50_fut-*.csv or nse50_fut.csv',
       file: filesState.futuresFile,
     },
     {
       key: 'optFile' as const,
-      name: filesState.optFile ? filesState.optFile.name : 'nse50_opt.csv',
+      placeholder: 'Select NSE 50 Options CSV',
       label: '3. NSE 50 Options CSV',
       desc: 'e.g. MW-FO-nse50_opt-*.csv or nse50_opt.csv',
       file: filesState.optFile,
@@ -59,7 +59,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
             type="file"
             accept=".csv"
             multiple
-            id="batch-file-input"
+            id="batch-upload-input"
             style={{ display: 'none' }}
             onChange={(e) => {
               if (e.target.files && e.target.files.length > 0) {
@@ -67,12 +67,8 @@ export const FileUpload: React.FC<FileUploadProps> = ({
               }
             }}
           />
-          <label
-            htmlFor="batch-file-input"
-            className="btn-secondary"
-            style={{ fontSize: '0.85rem' }}
-          >
-            <UploadCloud size={16} color="var(--accent-gold)" />
+          <label htmlFor="batch-upload-input" className="btn-secondary" style={{ cursor: 'pointer' }}>
+            <UploadCloud size={16} />
             Upload All 3 Files Together
           </label>
         </div>
@@ -80,96 +76,105 @@ export const FileUpload: React.FC<FileUploadProps> = ({
 
       {filesState.missingFileError && (
         <div style={{
-          backgroundColor: 'var(--bg-red)',
-          border: '1px solid var(--color-red)',
-          color: 'var(--color-red)',
-          padding: '12px 16px',
+          backgroundColor: '#FDEDEC',
+          color: '#C0392B',
+          padding: '10px 14px',
           borderRadius: '6px',
-          marginBottom: '20px',
-          fontWeight: 600,
+          marginBottom: '16px',
+          fontSize: '0.85rem',
           display: 'flex',
           alignItems: 'center',
-          gap: '10px'
+          gap: '8px',
+          border: '1px solid #FADBD8'
         }}>
-          <AlertTriangle size={20} />
-          <div>
-            Missing File: <span style={{ textDecoration: 'underline' }}>{filesState.missingFileError}</span>
-            <div style={{ fontSize: '0.85rem', fontWeight: 400, marginTop: '2px' }}>
-              Processing stopped. Please upload all three required CSV files to proceed.
-            </div>
-          </div>
+          <AlertTriangle size={16} />
+          <span>Missing File: Please select <strong>{filesState.missingFileError}</strong> to complete analysis.</span>
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
-        {fileConfigs.map(item => (
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+        gap: '16px',
+        marginBottom: '20px'
+      }}>
+        {fileConfigs.map((config) => (
           <div
-            key={item.key}
+            key={config.key}
             style={{
-              backgroundColor: item.file ? '#F4F7F2' : 'var(--bg-main)',
-              border: item.file ? '1.5px solid var(--color-green)' : '1px dashed var(--border-color)',
+              border: `1.5px dashed ${config.file ? 'var(--color-green)' : 'var(--border-color)'}`,
+              backgroundColor: config.file ? 'rgba(76, 175, 80, 0.04)' : 'var(--bg-main)',
               borderRadius: '8px',
               padding: '16px',
               textAlign: 'center',
-              position: 'relative'
+              transition: 'all 0.2s ease'
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px' }}>
-              {item.file ? (
-                <CheckCircle size={28} color="var(--color-green)" />
+            <div style={{ marginBottom: '10px' }}>
+              {config.file ? (
+                <CheckCircle size={32} color="var(--color-green)" />
               ) : (
-                <FileSpreadsheet size={28} color="var(--text-muted)" />
+                <FilePlus size={32} color="var(--text-muted)" />
               )}
             </div>
 
-            <h3 style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: '4px' }}>
-              <span className="pill-code">{item.label}</span>
-            </h3>
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '12px' }}>
-              {item.desc}
-            </p>
+            <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-main)', marginBottom: '4px' }}>
+              {config.label}
+            </div>
+
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '12px' }}>
+              {config.desc}
+            </div>
 
             <input
               type="file"
               accept=".csv"
-              id={`input-${item.key}`}
+              id={`upload-${config.key}`}
               style={{ display: 'none' }}
               onChange={(e) => {
-                const f = e.target.files?.[0] || null;
-                onFileSelect(item.key, f);
+                const file = e.target.files?.[0] || null;
+                onFileSelect(config.key, file);
               }}
             />
 
             <label
-              htmlFor={`input-${item.key}`}
-              className="btn-secondary"
+              htmlFor={`upload-${config.key}`}
               style={{
-                width: '100%',
-                justifyContent: 'center',
-                fontSize: '0.85rem',
-                backgroundColor: item.file ? '#E2F0E5' : 'var(--bg-card)',
-                color: item.file ? 'var(--color-green)' : 'var(--text-main)',
-                borderColor: item.file ? 'var(--color-green)' : 'var(--border-color)',
-                wordBreak: 'break-all'
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 12px',
+                borderRadius: '6px',
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                backgroundColor: config.file ? '#E8F5E9' : 'var(--bg-sidebar)',
+                color: config.file ? 'var(--color-green)' : 'var(--text-main)',
+                border: `1px solid ${config.file ? 'var(--color-green)' : 'var(--border-color)'}`,
+                maxWidth: '100%',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap'
               }}
             >
-              {item.file ? item.file.name : `Select CSV File`}
+              <FileSpreadsheet size={14} />
+              {config.file ? config.file.name : config.placeholder}
             </label>
           </div>
         ))}
       </div>
 
-      <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end' }}>
+      <div style={{ textAlign: 'right' }}>
         <button
           onClick={onProcessFiles}
           className="btn-primary"
           style={{
             padding: '10px 24px',
             fontSize: '0.95rem',
-            opacity: allUploaded ? 1 : 0.7
+            opacity: allUploaded ? 1 : 0.85
           }}
         >
-          <Play size={18} />
+          <Play size={16} />
           Analyze Option Chain Data
         </button>
       </div>
