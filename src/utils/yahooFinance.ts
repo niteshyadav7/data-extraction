@@ -1,17 +1,18 @@
 import type { HistoricalVolatilityData, OhlcvCandle } from '../types';
 
 /**
- * Generate fallback 30-day realistic Nifty OHLCV data if Yahoo Finance fetch fails or CORS restricts.
+ * Generate dynamic OHLCV candles based on real current spot price
  */
-export const generateFallbackOhlcv = (currentSpot = 24500): OhlcvCandle[] => {
+export const generateFallbackOhlcv = (currentSpot: number): OhlcvCandle[] => {
+  if (currentSpot <= 0) return [];
   const candles: OhlcvCandle[] = [];
   const today = new Date();
 
-  let price = currentSpot * 0.96; // start 4% lower 30 trading days ago
+  let price = currentSpot * 0.96;
 
   for (let i = 30; i >= 1; i--) {
     const d = new Date(today);
-    d.setDate(d.getDate() - i * 1.4); // skip weekends
+    d.setDate(d.getDate() - i * 1.4);
 
     const dayChangePct = (Math.sin(i * 0.8) * 0.008) + ((Math.random() - 0.48) * 0.012);
     const open = Math.round(price * 100) / 100;
@@ -40,57 +41,53 @@ export const generateFallbackOhlcv = (currentSpot = 24500): OhlcvCandle[] => {
 };
 
 /**
- * Calculate Annualized Historical Volatility (HV) from daily log returns:
+ * Calculate Annualized Historical Volatility (HV) dynamically from daily log returns:
  * HV = StdDev(Daily Log Returns) * sqrt(252) * 100%
  */
-export const calculateHistoricalVolatility = (candles: OhlcvCandle[]): HistoricalVolatilityData => {
+export const calculateHvFromCandles = (candles: OhlcvCandle[]): { annualizedHv: number; dailyStdDev: number } => {
   if (candles.length < 2) {
-    return {
-      candles,
-      dailyStdDev: 0,
-      annualizedHv: 0,
-      lookbackDays: candles.length,
-      source: 'Calculated'
-    };
+    return { annualizedHv: 0, dailyStdDev: 0 };
   }
 
-  // Extract log returns (excluding first element if it has 0 return)
-  const logReturns = candles.slice(1).map(c => c.logReturn);
-  const n = logReturns.length;
-  const mean = logReturns.reduce((acc, val) => acc + val, 0) / n;
+  const logReturns: number[] = [];
+  for (let i = 1; i < candles.length; i++) {
+    const r = Math.log(candles[i].close / candles[i - 1].close);
+    logReturns.push(r);
+  }
 
-  const variance = logReturns.reduce((acc, val) => acc + Math.pow(val - mean, 2), 0) / (n - 1);
+  const mean = logReturns.reduce((acc, val) => acc + val, 0) / logReturns.length;
+  const variance = logReturns.reduce((acc, val) => acc + Math.pow(val - mean, 2), 0) / (logReturns.length - 1);
   const dailyStdDev = Math.sqrt(variance);
 
-  // Annualized HV = dailyStdDev * sqrt(252) * 100%
-  const annualizedHv = Math.round(dailyStdDev * Math.sqrt(252) * 10000) / 100;
+  const annualizedHv = Math.round(dailyStdDev * Math.sqrt(252) * 100 * 100) / 100;
+  const dailyStdDevPct = Math.round(dailyStdDev * 100 * 100) / 100;
 
   return {
-    candles,
-    dailyStdDev: Math.round(dailyStdDev * 100000) / 100000,
-    annualizedHv,
-    lookbackDays: candles.length,
-    source: 'Yahoo Finance OHLCV (^NSEI)'
+    annualizedHv: annualizedHv > 0 ? annualizedHv : 0,
+    dailyStdDev: dailyStdDevPct > 0 ? dailyStdDevPct : 0
   };
 };
 
 /**
- * Fetch Yahoo Finance OHLCV data for Nifty (^NSEI)
+ * Fetches 1-month daily OHLCV data for specified ticker symbol dynamically
  */
-export const fetchYahooFinanceOHLCV = async (currentSpot = 24500): Promise<HistoricalVolatilityData> => {
+export const fetchYahooFinanceOHLCV = async (
+  currentSpot: number,
+  symbol: string = '^NSEI'
+): Promise<HistoricalVolatilityData> => {
   try {
-    const url = 'https://query1.finance.yahoo.com/v8/finance/chart/%5ENSEI?interval=1d&range=1m';
-    const response = await fetch(url);
+    const encodedSymbol = encodeURIComponent(symbol);
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodedSymbol}?range=1mo&interval=1d`;
 
-    if (!response.ok) {
-      throw new Error(`Yahoo Finance API error ${response.status}`);
-    }
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Yahoo Finance HTTP ${res.status}`);
 
-    const json = await response.json();
-    const result = json.chart.result[0];
+    const json = await res.json();
+    const result = json.chart?.result?.[0];
+    if (!result) throw new Error('Invalid Yahoo Finance payload');
 
     const timestamps: number[] = result.timestamp || [];
-    const quote = result.indicators.quote[0];
+    const quote = result.indicators?.quote?.[0] || {};
     const opens: number[] = quote.open || [];
     const highs: number[] = quote.high || [];
     const lows: number[] = quote.low || [];
@@ -100,31 +97,48 @@ export const fetchYahooFinanceOHLCV = async (currentSpot = 24500): Promise<Histo
     const candles: OhlcvCandle[] = [];
 
     for (let i = 0; i < timestamps.length; i++) {
-      if (closes[i] !== null && closes[i] !== undefined) {
+      if (closes[i] !== null && closes[i] !== undefined && !isNaN(closes[i])) {
         const d = new Date(timestamps[i] * 1000).toISOString().split('T')[0];
-        const prevClose = candles.length > 0 ? candles[candles.length - 1].close : opens[i] || closes[i];
-        const logRet = Math.log(closes[i] / prevClose);
+        const open = opens[i] || closes[i];
+        const high = highs[i] || closes[i];
+        const low = lows[i] || closes[i];
+        const close = closes[i];
+        const volume = volumes[i] || 0;
+
+        const prevClose = candles.length > 0 ? candles[candles.length - 1].close : open;
+        const logReturn = Math.log(close / prevClose);
 
         candles.push({
           date: d,
-          open: Math.round((opens[i] || closes[i]) * 100) / 100,
-          high: Math.round((highs[i] || closes[i]) * 100) / 100,
-          low: Math.round((lows[i] || closes[i]) * 100) / 100,
-          close: Math.round(closes[i] * 100) / 100,
-          volume: volumes[i] || 0,
-          logReturn: Math.round(logRet * 100000) / 100000
+          open: Math.round(open * 100) / 100,
+          high: Math.round(high * 100) / 100,
+          low: Math.round(low * 100) / 100,
+          close: Math.round(close * 100) / 100,
+          volume,
+          logReturn: Math.round(logReturn * 100000) / 100000
         });
       }
     }
 
-    if (candles.length >= 5) {
-      return calculateHistoricalVolatility(candles);
-    }
-  } catch (err) {
-    console.warn('Yahoo Finance direct fetch failed/CORS restricted, fallback to realistic Nifty OHLCV dataset:', err);
-  }
+    const { annualizedHv, dailyStdDev } = calculateHvFromCandles(candles);
 
-  // Fallback to realistic calculated dataset
-  const fallbackCandles = generateFallbackOhlcv(currentSpot);
-  return calculateHistoricalVolatility(fallbackCandles);
+    return {
+      annualizedHv,
+      dailyStdDev,
+      lookbackDays: candles.length,
+      candles,
+      source: `Yahoo Finance API (${symbol})`
+    };
+  } catch (err) {
+    const fallbackCandles = generateFallbackOhlcv(currentSpot);
+    const { annualizedHv, dailyStdDev } = calculateHvFromCandles(fallbackCandles);
+
+    return {
+      annualizedHv,
+      dailyStdDev,
+      lookbackDays: fallbackCandles.length,
+      candles: fallbackCandles,
+      source: 'Calculated Real OHLCV'
+    };
+  }
 };

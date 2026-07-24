@@ -1,6 +1,6 @@
 export interface RawOptionChainRow {
   strikePrice: number;
-  expiryDate?: string;
+  expiryDate: string;
   ceLtp: number;
   ceOi: number;
   ceChgOi: number;
@@ -15,7 +15,7 @@ export interface RawOptionChainRow {
   peIv: number;
   peBid: number;
   peAsk: number;
-  underlyingValue?: number;
+  underlyingValue: number;
 }
 
 export interface RawFuturesRow {
@@ -27,9 +27,10 @@ export interface RawFuturesRow {
   ltp: number;
   volume: number;
   openInterest: number;
-  spotPrice?: number;
+  spotPrice: number;
   currentDate?: string;
   currentTime?: string;
+  timestamp?: string;
 }
 
 export interface RawOptRow {
@@ -37,42 +38,38 @@ export interface RawOptRow {
   expiryDate: string;
   optionType: 'CE' | 'PE';
   strikePrice: number;
-  open?: number;
-  high?: number;
-  low?: number;
   ltp: number;
   volume: number;
   openInterest: number;
   chgOi: number;
-  iv?: number;
+  iv: number;
   bidPrice?: number;
   askPrice?: number;
+  open?: number;
+  high?: number;
+  low?: number;
 }
 
-export interface DataWarnings {
-  missingValuesCount: number;
-  missingValuesDetails: string[];
-  duplicateRowsCount: number;
-  duplicateRowsDetails: string[];
-  invalidIvCount: number;
-  invalidIvDetails: string[];
-  negativeOiCount: number;
-  negativeOiDetails: string[];
-  negativeVolumeCount: number;
-  negativeVolumeDetails: string[];
+export interface UploadedFilesState {
+  optionChainFile: File | null;
+  futuresFile: File | null;
+  optFile: File | null;
+  missingFileError: string | null;
 }
 
 export interface MarketSummaryData {
+  underlying: string;
   spotPrice: number;
   futuresPrice: number;
   futuresPremiumDiscount: number;
-  premiumDiscountType: 'Premium' | 'Discount' | 'Parity';
+  premiumDiscountType: 'Premium' | 'Discount';
   currentExpiry: string;
   daysToExpiry: number;
   currentDate: string;
   currentTime: string;
-  underlying: string;
-  timestamp: string;
+  timestamp: string; // Exchange Timestamp
+  isMarketOpen: boolean; // Trading hours status check
+  marketStatusLabel: string; // "LIVE SESSION" or "LAST SESSION CLOSE"
 }
 
 export interface OptionChainSummaryData {
@@ -99,63 +96,57 @@ export interface OptionChainSummaryData {
   atmStrike: number;
 }
 
-export interface PcrStrikeRow {
-  strike: number;
-  ceOi: number;
-  peOi: number;
-  pcr: number;
-}
-
 export interface PcrAnalysisData {
   overallPcr: number;
   interpretation: string;
-  strikeWisePcr: PcrStrikeRow[];
+  strikeWisePcr: {
+    strike: number;
+    ceOi: number;
+    peOi: number;
+    pcr: number;
+  }[];
 }
 
 export interface MaxPainData {
   maxPainStrike: number;
   distanceFromSpot: number;
   distancePercentage: number;
-  strikeLosses: { strike: number; totalLoss: number }[];
+  strikeWiseLosses: {
+    strike: number;
+    ceLoss: number;
+    peLoss: number;
+    totalLoss: number;
+  }[];
 }
 
-export interface SupportResistanceRow {
+export interface LevelRow {
   strike: number;
   oi: number;
   chgOi: number;
 }
 
 export interface SupportResistanceData {
-  top5Support: SupportResistanceRow[];
-  top5Resistance: SupportResistanceRow[];
+  top5Support: LevelRow[];
+  top5Resistance: LevelRow[];
 }
 
-export type OiBuildUpType =
-  | 'Call Writing'
-  | 'Put Writing'
-  | 'Long Build-up'
-  | 'Short Build-up'
-  | 'Long Unwinding'
-  | 'Short Covering';
-
-export interface OiAnalysisRow {
+export interface OiBuildUpRow {
   strike: number;
   type: 'CE' | 'PE';
   chgOi: number;
   oi: number;
   ltp: number;
-  classification: OiBuildUpType;
 }
 
 export interface OiAnalysisData {
-  top10CallWriting: OiAnalysisRow[];
-  top10PutWriting: OiAnalysisRow[];
-  top10CallUnwinding: OiAnalysisRow[];
-  top10PutUnwinding: OiAnalysisRow[];
-  longBuildUp: OiAnalysisRow[];
-  shortBuildUp: OiAnalysisRow[];
-  shortCovering: OiAnalysisRow[];
-  longUnwinding: OiAnalysisRow[];
+  top10CallWriting: OiBuildUpRow[];
+  top10PutWriting: OiBuildUpRow[];
+  top10CallUnwinding: OiBuildUpRow[];
+  top10PutUnwinding: OiBuildUpRow[];
+  longBuildUp: OiBuildUpRow[];
+  shortBuildUp: OiBuildUpRow[];
+  longUnwinding: OiBuildUpRow[];
+  shortCovering: OiBuildUpRow[];
 }
 
 export interface LiquidityRow {
@@ -169,12 +160,6 @@ export interface LiquidityRow {
   liquidityScore: number;
 }
 
-export interface IvSmilePoint {
-  strike: number;
-  ceIv: number;
-  peIv: number;
-}
-
 export interface IvAnalysisData {
   atmIv: number;
   avgCeIv: number;
@@ -184,12 +169,14 @@ export interface IvAnalysisData {
   lowestIvStrike: number;
   lowestIvValue: number;
   ivSkew: number;
-  otmPutIv: number;
-  otmCallIv: number;
-  ivSmileCurve: IvSmilePoint[];
+  ivSmile: {
+    strike: number;
+    ceIv: number;
+    peIv: number;
+  }[];
 }
 
-export interface OptionGreeks {
+export interface GreekValue {
   delta: number;
   gamma: number;
   theta: number;
@@ -197,10 +184,12 @@ export interface OptionGreeks {
   rho: number;
 }
 
+export interface OptionGreeks extends GreekValue {}
+
 export interface GreekRow {
   strike: number;
-  ce: OptionGreeks;
-  pe: OptionGreeks;
+  ce: GreekValue;
+  pe: GreekValue;
 }
 
 export interface ExpectedMoveData {
@@ -220,7 +209,7 @@ export interface FuturesAnalysisData {
   premium: number;
   discount: number;
   basisPct: number;
-  status: 'Premium' | 'Discount' | 'Parity';
+  status: 'Premium' | 'Discount';
 }
 
 export interface OhlcvCandle {
@@ -234,10 +223,10 @@ export interface OhlcvCandle {
 }
 
 export interface HistoricalVolatilityData {
-  candles: OhlcvCandle[];
-  dailyStdDev: number;
   annualizedHv: number;
+  dailyStdDev: number;
   lookbackDays: number;
+  candles: OhlcvCandle[];
   source: string;
 }
 
@@ -249,40 +238,59 @@ export interface HvVsIvData {
   interpretation: string;
 }
 
-export interface ActiveOptionRow {
+export interface MostActiveOptionRow {
   strike: number;
   type: 'CE' | 'PE';
+  ltp: number;
+  volume: number;
+  oi: number;
   value: number;
 }
 
 export interface MostActiveData {
-  top10ByVolume: ActiveOptionRow[];
-  top10ByOi: ActiveOptionRow[];
+  top10ByVolume: MostActiveOptionRow[];
+  top10ByOi: MostActiveOptionRow[];
 }
 
 export interface CompleteChainRow {
   strike: number;
-  ceLtp: number;
+  isAtm: boolean;
   ceOi: number;
   ceChgOi: number;
   ceVolume: number;
   ceIv: number;
+  ceLtp: number;
   ceDelta: number;
   ceGamma: number;
   ceTheta: number;
   ceVega: number;
-  ceRho: number;
-  peDelta: number;
-  peGamma: number;
-  peTheta: number;
-  peVega: number;
-  peRho: number;
+  peLtp: number;
   peIv: number;
   peVolume: number;
   peChgOi: number;
   peOi: number;
-  peLtp: number;
-  isAtm: boolean;
+  peDelta: number;
+  peGamma: number;
+  peTheta: number;
+  peVega: number;
+}
+
+export interface DataWarnings {
+  missingValues: string[];
+  duplicateRows: string[];
+  invalidIv: string[];
+  negativeOi: string[];
+  negativeVolume: string[];
+  missingValuesDetails: string[];
+  duplicateRowsDetails: string[];
+  invalidIvDetails: string[];
+  negativeOiDetails: string[];
+  negativeVolumeDetails: string[];
+  missingValuesCount: number;
+  duplicateRowsCount: number;
+  invalidIvCount: number;
+  negativeOiCount: number;
+  negativeVolumeCount: number;
 }
 
 export interface DashboardMetrics {
@@ -303,11 +311,4 @@ export interface DashboardMetrics {
   completeChain: CompleteChainRow[];
   warnings: DataWarnings;
   riskFreeRate: number;
-}
-
-export interface UploadedFilesState {
-  optionChainFile: File | null;
-  futuresFile: File | null;
-  optFile: File | null;
-  missingFileError: string | null;
 }

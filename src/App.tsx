@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Header } from './components/Header';
 import { FileUpload } from './components/FileUpload';
 import { ConfigBar } from './components/ConfigBar';
@@ -19,13 +19,23 @@ import { MostActiveSection } from './components/MostActiveSection';
 import { CompleteOptionChain } from './components/CompleteOptionChain';
 import { WarningsSection } from './components/WarningsSection';
 
-import type { DashboardMetrics, UploadedFilesState } from './types';
+import type {
+  DashboardMetrics,
+  UploadedFilesState,
+  RawOptionChainRow,
+  RawFuturesRow,
+  RawOptRow
+} from './types';
 import { parseOptionChainCsv, parseFuturesCsv, parseOptCsv } from './utils/csvParser';
 import { calculateDashboardMetrics } from './utils/calculations';
 import { fetchYahooFinanceOHLCV } from './utils/yahooFinance';
 
 export function App() {
   const [riskFreeRate, setRiskFreeRate] = useState<number>(5.25);
+  const [isLiveSync, setIsLiveSync] = useState<boolean>(true);
+  const [syncInterval, setSyncInterval] = useState<number>(60);
+  const [selectedSymbol, setSelectedSymbol] = useState<string>('NIFTY');
+  const [selectedType, setSelectedType] = useState<'INDEX' | 'STOCK'>('INDEX');
 
   const [filesState, setFilesState] = useState<UploadedFilesState>({
     optionChainFile: null,
@@ -35,6 +45,17 @@ export function App() {
   });
 
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
+  const timerRef = useRef<number | null>(null);
+
+  // Initial load from real market CSV files or Live API
+  useEffect(() => {
+    fetchSymbolData(selectedSymbol, selectedType);
+  }, [selectedSymbol, selectedType]);
+
+  const handleSelectSymbol = (symbol: string, type: 'INDEX' | 'STOCK') => {
+    setSelectedSymbol(symbol);
+    setSelectedType(type);
+  };
 
   const handleFileSelect = (type: 'optionChainFile' | 'futuresFile' | 'optFile', file: File | null) => {
     setFilesState(prev => ({
@@ -69,7 +90,6 @@ export function App() {
   };
 
   const processFiles = async () => {
-    // Step 1 Validation: Verify all required files are present
     if (!filesState.optionChainFile) {
       setFilesState(prev => ({ ...prev, missingFileError: 'option-chain.csv' }));
       setMetrics(null);
@@ -95,9 +115,9 @@ export function App() {
       const futuresData = parseFuturesCsv(futuresText);
       const optData = parseOptCsv(optText);
 
-      // Fetch fresh HV for spot price
-      const spot = futuresData.spotPrice || 23767.45;
-      const freshHv = await fetchYahooFinanceOHLCV(spot);
+      const spot = futuresData.spotPrice || (optionChainData.length > 0 ? optionChainData[0].underlyingValue : 0);
+      const yahooSymbol = selectedType === 'INDEX' ? (selectedSymbol === 'NIFTY' ? '^NSEI' : `^NSE${selectedSymbol}`) : `${selectedSymbol}.NS`;
+      const freshHv = await fetchYahooFinanceOHLCV(spot, yahooSymbol);
 
       const calculated = calculateDashboardMetrics(
         optionChainData,
@@ -116,6 +136,191 @@ export function App() {
     }
   };
 
+  // Fetch data for selected stock or index
+  const fetchSymbolData = async (symbol = 'NIFTY', type: 'INDEX' | 'STOCK' = 'INDEX') => {
+    let success = false;
+
+    // 1. Try Live CORS Proxy Server for the selected symbol
+    try {
+      const res = await fetch(`http://localhost:3001/api/live-data?symbol=${encodeURIComponent(symbol)}&type=${type}`);
+      if (res.ok) {
+        const json = await res.json();
+        if (json && json.records && json.records.data && json.records.data.length > 0) {
+          const records = json.records;
+          const data = records.data || [];
+          const underlyingVal = records.underlyingValue || 0;
+          const expiryDates = records.expiryDates || [];
+          const targetExpiry = expiryDates[0] || '';
+          const exchangeTimestamp = records.timestamp || `${new Date().toLocaleDateString()} 15:30:00 IST`;
+
+          const ocRows: RawOptionChainRow[] = [];
+          const optRows: RawOptRow[] = [];
+
+          data.forEach((item: any) => {
+            if (item.expiryDate === targetExpiry) {
+              const strike = item.strikePrice || 0;
+              const ce = item.CE || {};
+              const pe = item.PE || {};
+
+              const ceOi = ce.openInterest || 0;
+              const ceChgOi = ce.changeinOpenInterest || 0;
+              const ceVol = ce.totalTradedVolume || 0;
+              const ceIv = ce.impliedVolatility || 0;
+              const ceLtp = ce.lastPrice || 0;
+
+              const peOi = pe.openInterest || 0;
+              const peChgOi = pe.changeinOpenInterest || 0;
+              const peVol = pe.totalTradedVolume || 0;
+              const peIv = pe.impliedVolatility || 0;
+              const peLtp = pe.lastPrice || 0;
+
+              ocRows.push({
+                strikePrice: strike,
+                expiryDate: targetExpiry,
+                ceLtp,
+                ceOi,
+                ceChgOi,
+                ceVolume: ceVol,
+                ceIv,
+                ceBid: ce.buyPrice1 || 0,
+                ceAsk: ce.sellPrice1 || 0,
+                peLtp,
+                peOi,
+                peChgOi,
+                peVolume: peVol,
+                peIv,
+                peBid: pe.buyPrice1 || 0,
+                peAsk: pe.sellPrice1 || 0,
+                underlyingValue: underlyingVal
+              });
+
+              if (ceLtp > 0) {
+                optRows.push({
+                  symbol,
+                  expiryDate: targetExpiry,
+                  optionType: 'CE',
+                  strikePrice: strike,
+                  ltp: ceLtp,
+                  volume: ceVol,
+                  openInterest: ceOi,
+                  chgOi: ceChgOi,
+                  iv: ceIv
+                });
+              }
+              if (peLtp > 0) {
+                optRows.push({
+                  symbol,
+                  expiryDate: targetExpiry,
+                  optionType: 'PE',
+                  strikePrice: strike,
+                  ltp: peLtp,
+                  volume: peVol,
+                  openInterest: peOi,
+                  chgOi: peChgOi,
+                  iv: peIv
+                });
+              }
+            }
+          });
+
+          const indexData = json.filtered?.data?.[0] || {};
+          const futuresLtp = indexData.PE?.underlyingValue || underlyingVal;
+
+          const futuresData: RawFuturesRow = {
+            symbol,
+            expiryDate: targetExpiry,
+            open: underlyingVal,
+            high: underlyingVal,
+            low: underlyingVal,
+            ltp: futuresLtp,
+            volume: 0,
+            openInterest: 0,
+            spotPrice: underlyingVal,
+            currentDate: new Date().toISOString().split('T')[0],
+            currentTime: new Date().toLocaleTimeString(),
+            timestamp: exchangeTimestamp
+          };
+
+          const yahooSymbol = type === 'INDEX' ? (symbol === 'NIFTY' ? '^NSEI' : `^NSE${symbol}`) : `${symbol}.NS`;
+          const freshHv = await fetchYahooFinanceOHLCV(underlyingVal, yahooSymbol);
+
+          const calculated = calculateDashboardMetrics(
+            ocRows,
+            futuresData,
+            optRows,
+            {},
+            freshHv,
+            riskFreeRate
+          );
+
+          setMetrics(calculated);
+          success = true;
+        }
+      }
+    } catch (e) {
+      console.warn(`Proxy live fetch notice for ${symbol}:`, e);
+    }
+
+    // 2. Fallback to real CSV files if NIFTY is selected or fallback mode
+    if (!success && symbol === 'NIFTY') {
+      try {
+        const futRes = await fetch('/MW-FO-nse50_fut-25-Jul-2026.csv');
+        const optRes = await fetch('/MW-FO-nse50_opt-25-Jul-2026.csv');
+        const ocRes = await fetch('/option-chain-ED-NIFTY-28-Jul-2026.csv');
+
+        if (futRes.ok && optRes.ok && ocRes.ok) {
+          const futText = await futRes.text();
+          const optText = await optRes.text();
+          const ocText = await ocRes.text();
+
+          const { data: optionChainData, warningsPartial } = parseOptionChainCsv(ocText);
+          const futuresData = parseFuturesCsv(futText);
+          const optData = parseOptCsv(optText);
+
+          const spot = futuresData.spotPrice || (optionChainData.length > 0 ? optionChainData[0].underlyingValue : 0);
+          const freshHv = await fetchYahooFinanceOHLCV(spot, '^NSEI');
+
+          const calculated = calculateDashboardMetrics(
+            optionChainData,
+            futuresData,
+            optData,
+            warningsPartial,
+            freshHv,
+            riskFreeRate
+          );
+
+          setMetrics(calculated);
+
+          setFilesState({
+            optionChainFile: new File([ocText], 'option-chain-ED-NIFTY-28-Jul-2026.csv', { type: 'text/csv' }),
+            futuresFile: new File([futText], 'MW-FO-nse50_fut-25-Jul-2026.csv', { type: 'text/csv' }),
+            optFile: new File([optText], 'MW-FO-nse50_opt-25-Jul-2026.csv', { type: 'text/csv' }),
+            missingFileError: null
+          });
+        }
+      } catch (err) {
+        console.error('Failed to load market CSV files:', err);
+      }
+    }
+  };
+
+  // Handle Live Auto-Sync Loop
+  useEffect(() => {
+    if (isLiveSync) {
+      fetchSymbolData(selectedSymbol, selectedType);
+      timerRef.current = window.setInterval(() => {
+        fetchSymbolData(selectedSymbol, selectedType);
+      }, syncInterval * 1000);
+    } else if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [isLiveSync, syncInterval, riskFreeRate, selectedSymbol, selectedType]);
+
   const handleRiskFreeRateChange = (newRate: number) => {
     setRiskFreeRate(newRate);
     if (metrics && filesState.optionChainFile && filesState.futuresFile && filesState.optFile) {
@@ -124,7 +329,8 @@ export function App() {
   };
 
   const handleRefreshYahoo = async () => {
-    const freshHv = await fetchYahooFinanceOHLCV(metrics?.marketSummary.spotPrice || 23767.45);
+    const yahooSymbol = selectedType === 'INDEX' ? (selectedSymbol === 'NIFTY' ? '^NSEI' : `^NSE${selectedSymbol}`) : `${selectedSymbol}.NS`;
+    const freshHv = await fetchYahooFinanceOHLCV(metrics?.marketSummary.spotPrice || 0, yahooSymbol);
     if (metrics) {
       setMetrics(prev => prev ? {
         ...prev,
@@ -140,6 +346,9 @@ export function App() {
   };
 
   const handleReset = () => {
+    setIsLiveSync(false);
+    setSelectedSymbol('NIFTY');
+    setSelectedType('INDEX');
     setFilesState({
       optionChainFile: null,
       futuresFile: null,
@@ -153,6 +362,8 @@ export function App() {
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg-main)' }}>
       <Header
         metrics={metrics}
+        selectedSymbol={selectedSymbol}
+        onSelectSymbol={handleSelectSymbol}
         onReset={handleReset}
       />
 
@@ -161,6 +372,16 @@ export function App() {
           riskFreeRate={riskFreeRate}
           onRateChange={handleRiskFreeRateChange}
           timestamp={metrics?.marketSummary.timestamp || ''}
+          marketSummaryData={metrics?.marketSummary}
+          isLiveSync={isLiveSync}
+          onToggleLiveSync={() => {
+            const nextState = !isLiveSync;
+            setIsLiveSync(nextState);
+            if (nextState) fetchSymbolData(selectedSymbol, selectedType);
+          }}
+          syncInterval={syncInterval}
+          onIntervalChange={setSyncInterval}
+          onManualLiveSync={() => fetchSymbolData(selectedSymbol, selectedType)}
         />
 
         <FileUpload

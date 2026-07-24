@@ -24,32 +24,15 @@ const cdf = (x: number): number => {
 
   if (x >= 0.0) {
     const t = 1.0 / (1.0 + p * x);
-    return (
-      1.0 -
-      c *
-        Math.exp(-0.5 * x * x) *
-        t *
-        (b1 + t * (b2 + t * (b3 + t * (b4 + t * b5))))
-    );
+    return 1.0 - c * Math.exp(-x * x / 2.0) * t * (t * (t * (t * (t * b5 + b4) + b3) + b2) + b1);
   } else {
     const t = 1.0 / (1.0 - p * x);
-    return (
-      c *
-      Math.exp(-0.5 * x * x) *
-      t *
-      (b1 + t * (b2 + t * (b3 + t * (b4 + t * b5))))
-    );
+    return c * Math.exp(-x * x / 2.0) * t * (t * (t * (t * (t * b5 + b4) + b3) + b2) + b1);
   }
 };
 
 /**
- * Calculate Black-Scholes Option Greeks
- * @param S Spot Price
- * @param K Strike Price
- * @param T Time to expiry in years (e.g. DTE / 365)
- * @param r Risk Free Rate (decimal, e.g. 0.0525 for 5.25%)
- * @param sigma Implied Volatility (decimal, e.g. 0.15 for 15%)
- * @param isCall boolean true for Call, false for Put
+ * Calculates Black-Scholes Greeks for Call or Put options.
  */
 export const calculateGreeks = (
   S: number,
@@ -57,43 +40,32 @@ export const calculateGreeks = (
   T: number,
   r: number,
   sigma: number,
-  isCall: boolean
+  optionType: 'CE' | 'PE'
 ): OptionGreeks => {
-  // Prevent division by zero or negative time
-  const time = Math.max(T, 0.0001); // minimum time fraction
-  const vol = Math.max(sigma, 0.01); // minimum 1% IV
+  if (T <= 0) T = 0.0001;
+  if (sigma <= 0) sigma = 0.01;
 
-  const d1 = (Math.log(S / K) + (r + 0.5 * vol * vol) * time) / (vol * Math.sqrt(time));
-  const d2 = d1 - vol * Math.sqrt(time);
+  const d1 = (Math.log(S / K) + (r + 0.5 * sigma * sigma) * T) / (sigma * Math.sqrt(T));
+  const d2 = d1 - sigma * Math.sqrt(T);
 
   const nPrimeD1 = pdf(d1);
 
-  // Delta
-  const delta = isCall ? cdf(d1) : cdf(d1) - 1;
-
-  // Gamma (same for call & put)
-  const gamma = nPrimeD1 / (S * vol * Math.sqrt(time));
-
-  // Theta (per day)
-  const term1 = -(S * nPrimeD1 * vol) / (2 * Math.sqrt(time));
-  let thetaYear = 0;
-  if (isCall) {
-    thetaYear = term1 - r * K * Math.exp(-r * time) * cdf(d2);
-  } else {
-    thetaYear = term1 + r * K * Math.exp(-r * time) * cdf(-d2);
-  }
-  const theta = thetaYear / 365;
-
-  // Vega (per 1% change in IV)
-  const vega = (S * nPrimeD1 * Math.sqrt(time)) / 100;
-
-  // Rho (per 1% change in interest rate)
+  let delta = 0;
+  let theta = 0;
   let rho = 0;
-  if (isCall) {
-    rho = (K * time * Math.exp(-r * time) * cdf(d2)) / 100;
+
+  if (optionType === 'CE') {
+    delta = cdf(d1);
+    theta = (-(S * nPrimeD1 * sigma) / (2 * Math.sqrt(T)) - r * K * Math.exp(-r * T) * cdf(d2)) / 365.0;
+    rho = (K * T * Math.exp(-r * T) * cdf(d2)) / 100.0;
   } else {
-    rho = (-K * time * Math.exp(-r * time) * cdf(-d2)) / 100;
+    delta = cdf(d1) - 1.0;
+    theta = (-(S * nPrimeD1 * sigma) / (2 * Math.sqrt(T)) + r * K * Math.exp(-r * T) * cdf(-d2)) / 365.0;
+    rho = (-K * T * Math.exp(-r * T) * cdf(-d2)) / 100.0;
   }
+
+  const gamma = nPrimeD1 / (S * sigma * Math.sqrt(T));
+  const vega = (S * nPrimeD1 * Math.sqrt(T)) / 100.0;
 
   return {
     delta: Math.round(delta * 10000) / 10000,
@@ -103,3 +75,5 @@ export const calculateGreeks = (
     rho: Math.round(rho * 10000) / 10000
   };
 };
+
+export const calculateBlackScholesGreeks = calculateGreeks;

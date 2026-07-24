@@ -24,6 +24,15 @@ def parse_num(val, default=0.0):
     except ValueError:
         return default
 
+def check_is_nse_market_open():
+    now = datetime.now()
+    is_weekday = 0 <= now.weekday() <= 4 # Mon=0, Fri=4
+    mins = now.hour * 60 + now.minute
+    start = 9 * 60 + 15
+    end = 15 * 60 + 30
+    is_open = is_weekday and (start <= mins <= end)
+    return is_open, "LIVE SESSION" if is_open else "LAST SESSION CLOSE"
+
 def norm_cdf(x):
     return (1.0 + math.erf(x / math.sqrt(2.0))) / 2.0
 
@@ -66,20 +75,17 @@ class AnalyticsEngine:
         self.data_dir = data_dir
         self.risk_free_rate = risk_free_rate
 
-    def find_file(self, primary, patterns):
-        path = os.path.join(self.data_dir, primary)
-        if os.path.exists(path):
-            return path
-        for pat in patterns:
-            matches = glob.glob(os.path.join(self.data_dir, pat))
-            if matches:
-                return matches[0]
+    def find_file(self, keyword):
+        for root, dirs, files in os.walk(self.data_dir):
+            for f in files:
+                if f.endswith('.csv') and keyword.lower() in f.lower():
+                    return os.path.join(root, f)
         return None
 
     def run_analysis(self, output_excel='analysis.xlsx', output_csv='analysis.csv'):
-        oc_file = self.find_file('option-chain.csv', ['*option-chain*.csv', '*NIFTY*.csv'])
-        fut_file = self.find_file('nse50_fut.csv', ['*fut*.csv', '*nse50_fut*.csv'])
-        opt_file = self.find_file('nse50_opt.csv', ['*opt*.csv', '*nse50_opt*.csv'])
+        oc_file = self.find_file('option-chain')
+        fut_file = self.find_file('fut')
+        opt_file = self.find_file('opt')
 
         if not oc_file or not fut_file or not opt_file:
             print(f"Missing required CSV files in {self.data_dir}")
@@ -89,7 +95,6 @@ class AnalyticsEngine:
 
         lines = open(oc_file, encoding='utf-8', errors='ignore').readlines()
         if len(lines) > 2 and ('CALLS' in lines[0] or 'STRIKE' in lines[1]):
-            # Standard NSE web option chain dump
             rows = []
             for line in lines[2:]:
                 parts = [p.strip().replace('"', '') for p in line.split(',')]
@@ -119,59 +124,92 @@ class AnalyticsEngine:
         df_fut.columns = [str(c).strip().upper() for c in df_fut.columns]
         df_opt.columns = [str(c).strip().upper() for c in df_opt.columns]
 
-        spot_price = 23767.45
-        futures_price = 23830.00
-        expiry = '28-Jul-2026'
+        spot_price = 0.0
+        futures_price = 0.0
+        expiry = ''
+        exchange_timestamp = ''
 
         if not df_fut.empty:
             first_row = df_fut.iloc[0]
             for col in df_fut.columns:
                 if 'UNDERLYING' in col or 'SPOT' in col:
-                    spot_price = parse_num(first_row[col], 23767.45)
+                    spot_price = parse_num(first_row[col])
                 if 'LTP' in col:
-                    futures_price = parse_num(first_row[col], 23830.00)
+                    futures_price = parse_num(first_row[col])
                 if 'EXPIRY' in col:
                     expiry = str(first_row[col]).strip()
+                if 'TIMESTAMP' in col:
+                    exchange_timestamp = str(first_row[col]).strip()
+
+        strikes = df_oc['STRIKE_PRICE'].values if 'STRIKE_PRICE' in df_oc else np.array([])
+        if spot_price == 0.0 and len(strikes) > 0:
+            spot_price = float(strikes[len(strikes) // 2])
+        if futures_price == 0.0:
+            futures_price = spot_price
 
         futures_premium = round(futures_price - spot_price, 2)
         basis_pct = round((futures_premium / spot_price) * 100, 2) if spot_price > 0 else 0.0
-        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        is_open, market_status_label = check_is_nse_market_open()
+        if not exchange_timestamp:
+            exchange_timestamp = f"{datetime.now().strftime('%Y-%m-%d')} 15:30:00 IST [{market_status_label}]"
+
         days_to_expiry = 4
+        if expiry:
+            try:
+                exp_dt = datetime.strptime(expiry, "%d-%b-%Y")
+                days_to_expiry = max(1, (exp_dt - datetime.now()).days)
+            except Exception:
+                pass
 
-        strikes = df_oc['STRIKE_PRICE'].values
-        atm_strike = int(strikes[np.argmin(np.abs(strikes - spot_price))]) if len(strikes) > 0 else 23800
+        atm_strike = int(strikes[np.argmin(np.abs(strikes - spot_price))]) if len(strikes) > 0 else 0
 
-        tot_ce_oi = int(df_oc['CE_OI'].sum())
-        tot_pe_oi = int(df_oc['PE_OI'].sum())
+        ce_oi_arr = df_oc['CE_OI'].values if 'CE_OI' in df_oc else np.array([])
+        pe_oi_arr = df_oc['PE_OI'].values if 'PE_OI' in df_oc else np.array([])
+
+        tot_ce_oi = int(np.sum(ce_oi_arr))
+        tot_pe_oi = int(np.sum(pe_oi_arr))
         overall_pcr = round(tot_pe_oi / tot_ce_oi, 2) if tot_ce_oi > 0 else 0.0
 
         min_loss = float('inf')
         max_pain_strike = atm_strike
         for k in strikes:
-            ce_loss = np.sum(df_oc['CE_OI'] * np.maximum(0, k - strikes))
-            pe_loss = np.sum(df_oc['PE_OI'] * np.maximum(0, strikes - k))
+            ce_loss = np.sum(ce_oi_arr * np.maximum(0, k - strikes))
+            pe_loss = np.sum(pe_oi_arr * np.maximum(0, strikes - k))
             tot_loss = ce_loss + pe_loss
             if tot_loss < min_loss:
                 min_loss = tot_loss
                 max_pain_strike = int(k)
 
-        atm_iv = 14.25
+        atm_row = df_oc[df_oc['STRIKE_PRICE'] == atm_strike]
+        ce_iv_val = float(atm_row['CE_IV'].iloc[0]) if len(atm_row) > 0 and 'CE_IV' in atm_row else 0.0
+        pe_iv_val = float(atm_row['PE_IV'].iloc[0]) if len(atm_row) > 0 and 'PE_IV' in atm_row else 0.0
+        atm_iv = round((ce_iv_val + pe_iv_val) / 2.0, 2) if (ce_iv_val > 0 or pe_iv_val > 0) else round(max(ce_iv_val, pe_iv_val), 2)
+
         T_years = max(days_to_expiry, 0.5) / 365.0
-        expected_move = round(spot_price * (atm_iv / 100.0) * math.sqrt(T_years), 2)
+        expected_move = round(spot_price * (atm_iv / 100.0) * math.sqrt(T_years), 2) if atm_iv > 0 else 0.0
         upper_bound = round(spot_price + expected_move, 2)
         lower_bound = round(spot_price - expected_move, 2)
 
-        hv_annualized = 14.85
+        hv_annualized = 0.0
+        if YFINANCE_AVAILABLE:
+            try:
+                tk = yf.Ticker("^NSEI")
+                hist = tk.history(period="1mo")
+                if not hist.empty:
+                    log_ret = np.log(hist['Close'] / hist['Close'].shift(1)).dropna()
+                    hv_annualized = round(float(log_ret.std() * np.sqrt(252) * 100), 2)
+            except Exception:
+                pass
 
-        # Greeks Table
         greeks_list = []
         for idx, row in df_oc.iterrows():
             s = row['STRIKE_PRICE']
-            ce_iv = float(row.get('CE_IV', 14.0)) / 100.0
-            pe_iv = float(row.get('PE_IV', 14.5)) / 100.0
+            ce_iv = float(row.get('CE_IV', 0)) / 100.0
+            pe_iv = float(row.get('PE_IV', 0)) / 100.0
 
-            ce_g = calculate_greeks(spot_price, s, T_years, self.risk_free_rate, ce_iv, 'CE')
-            pe_g = calculate_greeks(spot_price, s, T_years, self.risk_free_rate, pe_iv, 'PE')
+            ce_g = calculate_greeks(spot_price, s, T_years, self.risk_free_rate, ce_iv if ce_iv > 0 else 0.14, 'CE')
+            pe_g = calculate_greeks(spot_price, s, T_years, self.risk_free_rate, pe_iv if pe_iv > 0 else 0.14, 'PE')
 
             greeks_list.append({
                 'Strike': int(s),
@@ -197,7 +235,8 @@ class AnalyticsEngine:
                 {'Metric': 'Basis %', 'Value': f"{basis_pct}%"},
                 {'Metric': 'Expiry', 'Value': expiry},
                 {'Metric': 'Days To Expiry', 'Value': days_to_expiry},
-                {'Metric': 'Timestamp', 'Value': current_time},
+                {'Metric': 'Exchange Feed Timestamp', 'Value': exchange_timestamp},
+                {'Metric': 'Market Status', 'Value': market_status_label},
                 {'Metric': 'Risk-Free Rate', 'Value': f"{self.risk_free_rate * 100}%"}
             ]).to_excel(writer, sheet_name='Market Summary', index=False)
 
@@ -218,7 +257,7 @@ class AnalyticsEngine:
         # Export CSV (analysis.csv)
         with open(output_csv, 'w', encoding='utf-8') as f:
             f.write("=== MARKET SUMMARY ===\n")
-            f.write(f"Underlying,NIFTY\nSpot Price,{spot_price}\nFutures Price,{futures_price}\nFutures Premium,{futures_premium}\nBasis %,{basis_pct}%\nExpiry,{expiry}\nDays To Expiry,{days_to_expiry}\nTimestamp,{current_time}\nRisk-Free Rate,{self.risk_free_rate * 100}%\n\n")
+            f.write(f"Underlying,NIFTY\nSpot Price,{spot_price}\nFutures Price,{futures_price}\nFutures Premium,{futures_premium}\nBasis %,{basis_pct}%\nExpiry,{expiry}\nDays To Expiry,{days_to_expiry}\nExchange Feed Timestamp,{exchange_timestamp}\nMarket Status,{market_status_label}\nRisk-Free Rate,{self.risk_free_rate * 100}%\n\n")
 
             f.write("=== KEY METRICS & EXPECTED MOVE ===\n")
             f.write(f"Overall PCR,{overall_pcr}\nATM Strike,{atm_strike}\nMax Pain Strike,{max_pain_strike}\nATM IV,{atm_iv}%\nExpected Move,±{expected_move} pts\nUpper Target Boundary,{upper_bound}\nLower Target Boundary,{lower_bound}\nAnnualized HV,{hv_annualized}%\n\n")
