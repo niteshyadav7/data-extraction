@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Generated Export Analysis Files (Do not track in git / repo)
+analysis.csv
+analysis.xlsx
+*.xlsx
