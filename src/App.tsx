@@ -469,7 +469,11 @@ export function App() {
             {/* Table 15 & 16: Complete Option Chain */}
             <div id="sec-chain">
               <MostActiveSection data={metrics.mostActive} />
-              <CompleteOptionChain data={metrics.completeChain} />
+              <CompleteOptionChain
+                data={metrics.completeChain}
+                daysToExpiry={metrics.marketSummary.daysToExpiry}
+                riskFreeRate={metrics.riskFreeRate}
+              />
             </div>
 
             {/* Step 17: Data Audit Warnings */}
