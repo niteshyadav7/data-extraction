@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calculator, RefreshCw, TrendingUp, TrendingDown, Filter } from 'lucide-react';
+import { Calculator, RefreshCw, TrendingUp, TrendingDown, Filter, HelpCircle, ChevronDown, ChevronUp, Info } from 'lucide-react';
 import { calculateLtpTargetMatrix } from '../utils/ltpCalculator';
 
 interface LtpCalculatorSectionProps {
@@ -19,6 +19,7 @@ export const LtpCalculatorSection: React.FC<LtpCalculatorSectionProps> = ({
   const [ivShiftPct, setIvShiftPct] = useState<number>(0);
   const [hoursPassed, setHoursPassed] = useState<number>(0);
   const [strikeFilter, setStrikeFilter] = useState<'ATM_5' | 'ATM_10' | 'ATM_15' | 'ALL'>('ATM_10');
+  const [showGuide, setShowGuide] = useState<boolean>(true);
 
   // Update targetSpot when currentSpot changes initially
   useEffect(() => {
@@ -87,31 +88,93 @@ export const LtpCalculatorSection: React.FC<LtpCalculatorSectionProps> = ({
           </p>
         </div>
 
-        {/* Dynamic Strike Range Filter */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Filter size={16} color="var(--text-muted)" />
-          <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)' }}>Range:</span>
-          <select
-            value={strikeFilter}
-            onChange={(e: any) => setStrikeFilter(e.target.value)}
-            style={{
-              padding: '6px 12px',
-              borderRadius: '6px',
-              border: '1.5px solid var(--border-color)',
-              backgroundColor: 'var(--bg-main)',
-              color: 'var(--text-main)',
-              fontSize: '0.85rem',
-              fontWeight: 600,
-              cursor: 'pointer'
-            }}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {/* Guide Toggle */}
+          <button
+            onClick={() => setShowGuide(!showGuide)}
+            className="btn-secondary"
+            style={{ fontSize: '0.8rem', padding: '6px 12px' }}
           >
-            <option value="ATM_5">ATM ± 5 Strikes (Focused)</option>
-            <option value="ATM_10">ATM ± 10 Strikes (Standard)</option>
-            <option value="ATM_15">ATM ± 15 Strikes (Wide)</option>
-            <option value="ALL">All Strikes ({matrix.length})</option>
-          </select>
+            <HelpCircle size={14} color="var(--accent-gold)" />
+            {showGuide ? "Hide Usage Notes" : "📖 How to Use LTP Calculator"}
+            {showGuide ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </button>
+
+          {/* Dynamic Strike Range Filter */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Filter size={16} color="var(--text-muted)" />
+            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)' }}>Range:</span>
+            <select
+              value={strikeFilter}
+              onChange={(e: any) => setStrikeFilter(e.target.value)}
+              style={{
+                padding: '6px 12px',
+                borderRadius: '6px',
+                border: '1.5px solid var(--border-color)',
+                backgroundColor: 'var(--bg-main)',
+                color: 'var(--text-main)',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              <option value="ATM_5">ATM ± 5 Strikes (Focused)</option>
+              <option value="ATM_10">ATM ± 10 Strikes (Standard)</option>
+              <option value="ATM_15">ATM ± 15 Strikes (Wide)</option>
+              <option value="ALL">All Strikes ({matrix.length})</option>
+            </select>
+          </div>
         </div>
       </div>
+
+      {/* Expandable Usage Notes Guide Card */}
+      {showGuide && (
+        <div style={{
+          backgroundColor: '#FFFDE7',
+          border: '1.5px solid #FBC02D',
+          borderRadius: '10px',
+          padding: '16px 20px',
+          marginBottom: '20px',
+          fontSize: '0.85rem',
+          color: '#333'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, fontSize: '0.95rem', color: '#F57F17', marginBottom: '10px' }}>
+            <Info size={18} />
+            📖 Guide: How to Use the LTP Target & Reversal Calculator
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px', lineHeight: '1.6' }}>
+            <div>
+              <strong style={{ color: '#E65100' }}>1. Spot Price Simulator (Delta & Gamma):</strong>
+              <p style={{ marginTop: '2px', color: 'var(--text-main)' }}>
+                Move the <strong>Target Spot Price</strong> slider or type a target level (e.g. Nifty +100 pts). The calculator uses <strong>Black-Scholes Delta ($\Delta$) and Gamma ($\Gamma$)</strong> to compute the exact theoretical LTP for every Call & Put strike.
+              </p>
+            </div>
+
+            <div>
+              <strong style={{ color: '#E65100' }}>2. IV Volatility Shift (Vega Impact):</strong>
+              <p style={{ marginTop: '2px', color: 'var(--text-main)' }}>
+                Adjust the <strong>Target IV Change</strong>. Positive IV shift (e.g. +1.5%) increases option premiums due to <strong>Vega</strong>. Negative IV shift (e.g. -2.0%) models <strong>IV Crush</strong> after major events.
+              </p>
+            </div>
+
+            <div>
+              <strong style={{ color: '#E65100' }}>3. Holding Time Decay (Theta Erosion):</strong>
+              <p style={{ marginTop: '2px', color: 'var(--text-main)' }}>
+                Move the <strong>Time Passed</strong> slider (0 to 72 hours). Calculates daily <strong>Theta (Θ) time decay</strong> erosion to show what your options will be worth if held overnight.
+              </p>
+            </div>
+
+            <div>
+              <strong style={{ color: '#E65100' }}>4. Extension of Support & Resistance (EOS / EOR):</strong>
+              <p style={{ marginTop: '2px', color: 'var(--text-main)' }}>
+                • <strong>EOR (Extension of Resistance)</strong>: Strike + Target Call LTP. Upper price boundary where Call buyers take profit and price reverses.<br />
+                • <strong>EOS (Extension of Support)</strong>: Strike - Target Put LTP. Lower price boundary where Put buyers take profit and price bounces back.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Interactive Scenario Simulator Controls */}
       <div style={{

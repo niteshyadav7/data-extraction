@@ -1,6 +1,6 @@
 # 📈 Nifty Options Analysis Dashboard & Derivatives Engine
 
-A data-driven derivative analytics system and web dashboard for **NSE Nifty 50 Options & Futures**. It processes raw NSE market CSV files or live market feeds to calculate Black-Scholes Greeks, PCR, Max Pain, Volatility Cone, Expected Move, Liquidity Scores, and Volatility Skew — with 1-click **Excel (`analysis.xlsx`)** and **CSV (`analysis.csv`)** exporting.
+A data-driven derivative analytics system and web dashboard for **NSE Nifty 50 Options & Futures**. It processes raw NSE market CSV files or live market feeds to calculate Black-Scholes Greeks, PCR, Max Pain, Volatility Cone, Expected Move, Liquidity Scores, Volatility Skew, and **LTP Target & Reversal Prices** — with 1-click **Excel (`analysis.xlsx`)** and **CSV (`analysis.csv`)** exporting.
 
 > [!IMPORTANT]
 > **No Trading Recommendations • No AI Decision Making • Pure Quantitative Derivatives Analytics**
@@ -60,13 +60,24 @@ npm run build
 
 ---
 
-## 📋 Required NSE Market CSV Files
+## 🧮 How to Use the LTP Target & Reversal Calculator (Step 18)
 
-When using manual CSV mode, place or upload the following 3 files:
+The **LTP Calculator** in Step 18 lets options traders predict **where option prices (LTPs) will go** under different spot price movements, IV volatility shifts, and time decay.
 
-1. **`option-chain-ED-NIFTY-*.csv`** (or `option-chain.csv`)
-2. **`MW-FO-nse50_fut-*.csv`** (or `nse50_fut.csv`)
-3. **`MW-FO-nse50_opt-*.csv`** (or `nse50_opt.csv`)
+### 1. **Spot Price Simulator (Delta $\Delta$ & Gamma $\Gamma$)**
+- **Target Spot Price Input/Slider**: Type or slide to simulate a target spot price level (e.g. Nifty $+100$ pts).
+- The calculator uses **Black-Scholes Delta ($\Delta$) and Gamma ($\Gamma$)** to calculate the exact theoretical Call and Put LTP for every strike.
+
+### 2. **IV Volatility Shift (Vega $\nu$ Impact)**
+- **Target IV Change Slider**: Simulate volatility expansion ($+1.5\%$) or compression ($-2.0\%$ IV crush).
+- Positive IV shift adds Vega premium to options; negative IV shift models post-event IV crush.
+
+### 3. **Holding Time Decay (Theta $\Theta$ Erosion)**
+- **Time Passed Slider (0 to 72 Hours)**: Simulates daily **Theta ($\Theta$) time decay** erosion to show option value if held overnight.
+
+### 4. **Support & Resistance Reversal Levels (EOS / EOR)**
+- **EOR (Extension of Resistance)**: $\text{Strike} + \text{Target Call LTP}$. Theoretical upper boundary where Call buyers take profit and price reverses down.
+- **EOS (Extension of Support)**: $\text{Strike} - \text{Target Put LTP}$. Theoretical lower boundary where Put buyers take profit and price bounces up.
 
 ---
 
@@ -76,18 +87,20 @@ When using manual CSV mode, place or upload the following 3 files:
 | :---: | :--- | :--- |
 | **1** | **Market Summary** | Spot Price, Futures Price, Premium/Discount, Expiry, Days to Expiry, Exchange Feed Timestamp & Session Status (`🟢 LIVE` / `🔴 LAST SESSION CLOSE`) |
 | **2** | **Option Chain Summary & PCR** | Overall Call/Put OI, Total Volume, Strike PCR, and Market Sentiment Interpretation |
-| **3** | **Max Pain Analysis** | Buyer Loss Minimization Strike and distance from current spot price |
-| **4** | **Support & Resistance** | Top 5 Support levels (Put OI) and Top 5 Resistance levels (Call OI) |
-| **5** | **OI Build-up Classification** | 6-Way Classification (Call/Put Writing, Long/Short Build-up, Unwinding, Covering) |
-| **6** | **Liquidity Score (0-100)** | Normalized liquidity ranking based on Bid-Ask spread & trading volume |
-| **7** | **Implied Volatility (IV) Analysis** | ATM IV, Volatility Skew (OTM Put - OTM Call), and IV Smile Curve |
-| **8** | **Black-Scholes Greeks** | Vectorized $\Delta, \Gamma, \Theta, \nu, \rho$ for all CE & PE strikes |
-| **9** | **Expected Move Cone** | 1-StdDev Expected Price Move ($\text{Spot} \times \text{ATM IV} \times \sqrt{DTE/365}$) |
-| **10** | **Futures Analysis** | Basis %, Open Interest, High/Low/Open, and Premium/Discount Status |
-| **11** | **Historical Volatility (HV)** | 1-Month Annualized HV from Yahoo Finance (`^NSEI`) |
-| **12** | **HV vs IV Comparison** | Option Volatility Regime (Overpriced vs Underpriced) |
-| **13** | **Complete Option Chain Table** | High-density grid highlighting ATM row in Gold |
-| **14** | **Data Audit Warnings** | Quality audit for missing values, invalid IVs (`-` dashes), and duplicate rows |
+| **3** | **PCR Sentiment Gauge** | Color-coded Sentiment Gauge Meter (`Red` < 0.8, `Gold` 0.8-1.2, `Green` > 1.2) |
+| **4** | **Max Pain Analysis** | Buyer Loss Minimization Strike and distance from current spot price |
+| **5** | **Support & Resistance** | Top 5 Support levels (Put OI) and Top 5 Resistance levels (Call OI) |
+| **6** | **OI Build-up Classification** | 6-Way Classification (Call/Put Writing, Long/Short Build-up, Unwinding, Covering) |
+| **7** | **Liquidity Score (0-100)** | Normalized liquidity ranking based on Bid-Ask spread & trading volume |
+| **8** | **Implied Volatility (IV) Analysis** | ATM IV, Volatility Skew (OTM Put - OTM Call), and IV Smile Curve |
+| **9** | **Black-Scholes Greeks** | Vectorized $\Delta, \Gamma, \Theta, \nu, \rho$ for all CE & PE strikes |
+| **10** | **Expected Move Cone** | 1-StdDev Expected Price Move ($\text{Spot} \times \text{ATM IV} \times \sqrt{DTE/365}$) |
+| **11** | **Futures Analysis** | Basis %, Open Interest, High/Low/Open, and Premium/Discount Status |
+| **12** | **Historical Volatility (HV)** | 1-Month Annualized HV from Yahoo Finance (`^NSEI`) |
+| **13** | **HV vs IV Comparison** | Option Volatility Regime (Overpriced vs Underpriced) |
+| **14** | **Option Chain Matrix** | Complete Option Chain Grid with Range Filter (`ATM ± 5`, `ATM ± 10`, `All`), ITM Shading, and **Greeks Toggle** |
+| **15** | **LTP & Reversal Calculator** | Step 18 Dedicated LTP Target & Reversal Simulator (EOS/EOR Levels, Spot Shift, IV Shift, Theta Decay) |
+| **16** | **Data Audit Warnings** | Quality audit for missing values, invalid IVs (`-` dashes), and duplicate rows |
 | **Export** | **Excel & CSV Reports** | Multi-sheet `analysis.xlsx` and structured `analysis.csv` |
 
 ---
@@ -95,31 +108,6 @@ When using manual CSV mode, place or upload the following 3 files:
 ## 🎨 Theme & UI Styling
 - **Warm Light Theme**: Soft warm paper background (`#F4F1EA`), sidebar panels (`#EBE8E0`), and olive-gold primary accents (`#9B9044`).
 - **Typography**: Clean, high-density monospace numbers (`Inter` / system fonts).
-
----
-
-## 📁 Repository Structure
-```
-d:\NiteshYadav\Trading\data-extraction\
-├── index.html                  # App entry point with custom favicon
-├── package.json                # Project scripts & dependencies
-├── analytics_engine.py         # Python analytics & Excel/CSV exporter
-├── live_fetcher.py             # Python live NSE loop fetcher
-├── proxy_server.mjs            # Standalone Node CORS proxy server
-├── public/
-│   ├── favicon.svg             # Custom Nifty Derivative Favicon
-│   └── *.csv                   # Real NSE market data files
-└── src/
-    ├── components/             # React dashboard step components
-    ├── types/                  # TypeScript interfaces
-    └── utils/
-        ├── blackScholes.ts     # Black-Scholes Greeks calculator
-        ├── calculations.ts     # Core calculation engine
-        ├── csvParser.ts        # Robust NSE CSV dump parser
-        ├── exportCsv.ts        # Dashboard CSV report exporter
-        ├── exportExcel.ts      # Multi-sheet Excel workbook generator
-        └── yahooFinance.ts     # Historical Volatility API integration
-```
 
 ---
 
