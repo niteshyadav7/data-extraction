@@ -223,19 +223,31 @@ export const exportAnalysisToCsv = (metrics: DashboardMetrics) => {
   ));
   sections.push('');
 
-  // 13. Complete Option Chain Table
-  sections.push(`"=== 13. COMPLETE OPTION CHAIN TABLE ==="`);
+  // 13. Complete Option Chain Table with Quant Metrics
+  sections.push(`"=== 13. COMPLETE OPTION CHAIN TABLE WITH QUANT METRICS ==="`);
   sections.push(rowsToCsvBlock(
     [
-      'CE Delta', 'CE Gamma', 'CE Theta', 'CE Vega', 'CE LTP', 'CE OI', 'CE Chg OI', 'CE Volume', 'CE IV',
+      'CE Intrinsic', 'CE Extrinsic', 'CE POP %', 'CE Touch %', 'CE Delta', 'CE Gamma', 'CE Theta', 'CE Vega', 'CE LTP', 'CE OI', 'CE Chg OI', 'CE Volume', 'CE IV',
       'Strike',
-      'PE IV', 'PE Volume', 'PE Chg OI', 'PE OI', 'PE LTP', 'PE Delta', 'PE Gamma', 'PE Theta', 'PE Vega', 'ATM Tag'
+      'PE IV', 'PE Volume', 'PE Chg OI', 'PE OI', 'PE LTP', 'PE Intrinsic', 'PE Extrinsic', 'PE POP %', 'PE Touch %', 'PE Delta', 'PE Gamma', 'PE Theta', 'PE Vega', 'ATM Tag'
     ],
-    metrics.completeChain.map(r => [
-      r.ceDelta, r.ceGamma, r.ceTheta, r.ceVega, r.ceLtp, r.ceOi, r.ceChgOi, r.ceVolume, r.ceIv,
-      r.strike,
-      r.peIv, r.peVolume, r.peChgOi, r.peOi, r.peLtp, r.peDelta, r.peGamma, r.peTheta, r.peVega, r.isAtm ? 'ATM' : ''
-    ])
+    metrics.completeChain.map(r => {
+      const ceIntrinsic = Math.max(0, Math.round((ms.spotPrice - r.strike) * 100) / 100);
+      const ceExtrinsic = Math.max(0, Math.round((r.ceLtp - ceIntrinsic) * 100) / 100);
+      const cePop = Math.round(Math.abs(r.ceDelta) * 100);
+      const ceTouch = Math.min(100, cePop * 2);
+
+      const peIntrinsic = Math.max(0, Math.round((r.strike - ms.spotPrice) * 100) / 100);
+      const peExtrinsic = Math.max(0, Math.round((r.peLtp - peIntrinsic) * 100) / 100);
+      const pePop = Math.round(Math.abs(r.peDelta) * 100);
+      const peTouch = Math.min(100, pePop * 2);
+
+      return [
+        ceIntrinsic, ceExtrinsic, `${cePop}%`, `${ceTouch}%`, r.ceDelta, r.ceGamma, r.ceTheta, r.ceVega, r.ceLtp, r.ceOi, r.ceChgOi, r.ceVolume, r.ceIv,
+        r.strike,
+        r.peIv, r.peVolume, r.peChgOi, r.peOi, r.peLtp, peIntrinsic, peExtrinsic, `${pePop}%`, `${peTouch}%`, r.peDelta, r.peGamma, r.peTheta, r.peVega, r.isAtm ? 'ATM' : ''
+      ];
+    })
   ));
   sections.push('');
 
