@@ -99,6 +99,8 @@ export interface OptionChainSummaryData {
 export interface PcrAnalysisData {
   overallPcr: number;
   interpretation: string;
+  buyingPressureRatio?: number;
+  buyingPressureInterpretation?: string;
   strikeWisePcr: {
     strike: number;
     ceOi: number;
@@ -169,6 +171,9 @@ export interface IvAnalysisData {
   lowestIvStrike: number;
   lowestIvValue: number;
   ivSkew: number;
+  tailRiskSkew?: number;
+  otm2PctPutIv?: number;
+  otm2PctCallIv?: number;
   ivSmile: {
     strike: number;
     ceIv: number;

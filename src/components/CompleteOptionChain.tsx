@@ -204,13 +204,13 @@ export const CompleteOptionChain: React.FC<CompleteOptionChainProps> = ({
         <table style={{ width: '100%', tableLayout: 'auto' }}>
           <thead>
             <tr>
-              <th colSpan={showGreeks ? 13 : 6} style={{ textAlign: 'center', backgroundColor: '#E2F0E5', color: 'var(--color-green)', fontSize: '0.85rem', fontWeight: 700 }}>
+              <th colSpan={showGreeks ? 14 : 6} style={{ textAlign: 'center', backgroundColor: '#E2F0E5', color: 'var(--color-green)', fontSize: '0.85rem', fontWeight: 700 }}>
                 CALL OPTIONS (CE)
               </th>
               <th style={{ textAlign: 'center', backgroundColor: 'var(--accent-gold)', color: '#FFF', fontSize: '0.85rem', fontWeight: 700 }}>
                 STRIKE
               </th>
-              <th colSpan={showGreeks ? 13 : 6} style={{ textAlign: 'center', backgroundColor: '#FADBD8', color: 'var(--color-red)', fontSize: '0.85rem', fontWeight: 700 }}>
+              <th colSpan={showGreeks ? 14 : 6} style={{ textAlign: 'center', backgroundColor: '#FADBD8', color: 'var(--color-red)', fontSize: '0.85rem', fontWeight: 700 }}>
                 PUT OPTIONS (PE)
               </th>
             </tr>
@@ -222,7 +222,8 @@ export const CompleteOptionChain: React.FC<CompleteOptionChainProps> = ({
               {showGreeks && <>
                 <th title="Intrinsic Value">Intrinsic</th>
                 <th title="Extrinsic Time Value">Extrinsic</th>
-                <th title="Probability of Profit (Expiring ITM)">POP %</th>
+                <th title="Probability of Expiring ITM">POP %</th>
+                <th title="Probability of Touching Target Level">Touch %</th>
                 <th title="Delta">Δ</th>
                 <th title="Gamma">Γ</th>
                 <th title="Theta">Θ</th>
@@ -238,7 +239,8 @@ export const CompleteOptionChain: React.FC<CompleteOptionChainProps> = ({
               {showGreeks && <>
                 <th title="Intrinsic Value">Intrinsic</th>
                 <th title="Extrinsic Time Value">Extrinsic</th>
-                <th title="Probability of Profit (Expiring ITM)">POP %</th>
+                <th title="Probability of Expiring ITM">POP %</th>
+                <th title="Probability of Touching Target Level">Touch %</th>
                 <th title="Delta">Δ</th>
                 <th title="Gamma">Γ</th>
                 <th title="Theta">Θ</th>
@@ -275,7 +277,10 @@ export const CompleteOptionChain: React.FC<CompleteOptionChainProps> = ({
               ) : null;
 
               const cePop = ceGreeks ? Math.round(Math.abs(ceGreeks.delta) * 100) : 0;
+              const ceTouch = Math.min(100, cePop * 2);
+
               const pePop = peGreeks ? Math.round(Math.abs(peGreeks.delta) * 100) : 0;
+              const peTouch = Math.min(100, pePop * 2);
 
               return (
                 <tr
@@ -312,6 +317,9 @@ export const CompleteOptionChain: React.FC<CompleteOptionChainProps> = ({
                       </td>
                       <td style={{ backgroundColor: isCeItm ? 'rgba(76, 175, 80, 0.08)' : 'transparent', fontWeight: 700, color: cePop > 50 ? 'var(--color-green)' : 'var(--text-muted)' }}>
                         {cePop}%
+                      </td>
+                      <td style={{ backgroundColor: isCeItm ? 'rgba(76, 175, 80, 0.08)' : 'transparent', fontWeight: 600, color: ceTouch > 75 ? 'var(--color-green)' : 'var(--text-muted)' }}>
+                        {ceTouch}%
                       </td>
                       <td style={{ backgroundColor: isCeItm ? 'rgba(76, 175, 80, 0.08)' : 'transparent', fontWeight: 600, color: 'var(--color-blue)' }}>
                         {ceGreeks.delta.toFixed(2)}
@@ -366,6 +374,9 @@ export const CompleteOptionChain: React.FC<CompleteOptionChainProps> = ({
                       </td>
                       <td style={{ backgroundColor: isPeItm ? 'rgba(244, 67, 54, 0.08)' : 'transparent', fontWeight: 700, color: pePop > 50 ? 'var(--color-red)' : 'var(--text-muted)' }}>
                         {pePop}%
+                      </td>
+                      <td style={{ backgroundColor: isPeItm ? 'rgba(244, 67, 54, 0.08)' : 'transparent', fontWeight: 600, color: peTouch > 75 ? 'var(--color-red)' : 'var(--text-muted)' }}>
+                        {peTouch}%
                       </td>
                       <td style={{ backgroundColor: isPeItm ? 'rgba(244, 67, 54, 0.08)' : 'transparent', fontWeight: 600, color: 'var(--color-blue)' }}>
                         {peGreeks.delta.toFixed(2)}

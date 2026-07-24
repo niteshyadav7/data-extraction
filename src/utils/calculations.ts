@@ -147,6 +147,18 @@ export const calculateDashboardMetrics = (
   else if (overallPcr < 0.7) pcrInterpretation = 'Strong Bearish Sentiment (Heavy Call Writing)';
   else if (overallPcr < 1.0) pcrInterpretation = 'Mild Bearish Sentiment';
 
+  // Net Institutional Buying vs Selling Pressure Ratio
+  const posPeChgOi = sortedChain.reduce((acc, r) => acc + (r.peChgOi > 0 ? r.peChgOi : 0), 0);
+  const posCeChgOi = sortedChain.reduce((acc, r) => acc + (r.ceChgOi > 0 ? r.ceChgOi : 0), 0);
+
+  const numPressure = totalCallVolume + posPeChgOi;
+  const denPressure = totalPutVolume + posCeChgOi;
+  const buyingPressureRatio = denPressure > 0 ? Math.round((numPressure / denPressure) * 100) / 100 : 1.0;
+
+  let buyingPressureInterpretation = 'Balanced Buyer/Seller Pressure';
+  if (buyingPressureRatio > 1.25) buyingPressureInterpretation = 'Strong Institutional Buying & Put Writing Pressure';
+  else if (buyingPressureRatio < 0.8) buyingPressureInterpretation = 'Strong Institutional Selling & Call Writing Pressure';
+
   const chainSummary: OptionChainSummaryData = {
     totalCallOi,
     totalPutOi,
@@ -166,6 +178,8 @@ export const calculateDashboardMetrics = (
   const pcrAnalysis: PcrAnalysisData = {
     overallPcr,
     interpretation: pcrInterpretation,
+    buyingPressureRatio,
+    buyingPressureInterpretation,
     strikeWisePcr
   };
 
@@ -289,13 +303,24 @@ export const calculateDashboardMetrics = (
     ? Math.round((otmPut.peIv - otmCall.ceIv) * 100) / 100
     : Math.round((avgPeIv - avgCeIv) * 100) / 100;
 
+  // 2% OTM Tail Risk Skew
+  const otm2PctPutRow = sortedChain.slice().reverse().find(rRow => rRow.strikePrice <= spotPrice * 0.98) || sortedChain[0];
+  const otm2PctCallRow = sortedChain.find(rRow => rRow.strikePrice >= spotPrice * 1.02) || sortedChain[sortedChain.length - 1];
+  const otm2PctPutIv = otm2PctPutRow ? otm2PctPutRow.peIv : avgPeIv;
+  const otm2PctCallIv = otm2PctCallRow ? otm2PctCallRow.ceIv : avgCeIv;
+  const tailRiskSkew = Math.round((otm2PctPutIv - otm2PctCallIv) * 100) / 100;
+
   const ivSmile = sortedChain.map(rRow => ({ strike: rRow.strikePrice, ceIv: rRow.ceIv, peIv: rRow.peIv }));
 
   const ivAnalysis: IvAnalysisData = {
     atmIv, avgCeIv, avgPeIv,
     highestIvStrike: highestCeIvStrike, highestIvValue: highestCeIvValue,
     lowestIvStrike: lowestCeIvStrike, lowestIvValue: lowestCeIvValue === 999999 ? 0 : lowestCeIvValue,
-    ivSkew, ivSmile
+    ivSkew,
+    tailRiskSkew,
+    otm2PctPutIv,
+    otm2PctCallIv,
+    ivSmile
   };
 
   // 8. Black-Scholes Greeks
