@@ -1,4 +1,5 @@
 import type { DashboardMetrics } from '../types';
+import { calculateLtpTargetMatrix } from './ltpCalculator';
 
 /**
  * Escapes CSV cell value for proper CSV formatting
@@ -72,10 +73,16 @@ export const exportAnalysisToCsv = (metrics: DashboardMetrics) => {
   ));
   sections.push('');
 
-  // 3. PCR Analysis
+  // 3. PCR & Institutional Pressure Analysis
   const pcr = metrics.pcrAnalysis;
-  sections.push(`"=== 3. PCR ANALYSIS ==="`);
-  sections.push(`"Overall PCR",${escapeCsvCell(pcr.overallPcr)},${escapeCsvCell(pcr.interpretation)}`);
+  sections.push(`"=== 3. PCR & INSTITUTIONAL PRESSURE ANALYSIS ==="`);
+  sections.push(rowsToCsvBlock(
+    ['Metric', 'Value', 'Interpretation'],
+    [
+      ['Overall PCR', pcr.overallPcr, pcr.interpretation],
+      ['Institutional Buying Pressure Ratio', `${pcr.buyingPressureRatio || 1.0}x`, pcr.buyingPressureInterpretation || 'Balanced Buyer/Seller Pressure']
+    ]
+  ));
   sections.push(rowsToCsvBlock(
     ['Strike', 'CE OI', 'PE OI', 'PCR (PE OI / CE OI)'],
     pcr.strikeWisePcr.map(r => [r.strike, r.ceOi, r.peOi, r.pcr])
@@ -95,9 +102,31 @@ export const exportAnalysisToCsv = (metrics: DashboardMetrics) => {
   ));
   sections.push('');
 
-  // 5. Support & Resistance
+  // 5. Support & Resistance & 4-Level Reversal Zones
   const sr = metrics.supportResistance;
-  sections.push(`"=== 5. SUPPORT & RESISTANCE LEVELS ==="`);
+  const topSupport1 = sr.top5Support[0]?.strike || 0;
+  const topSupport2 = sr.top5Support[1]?.strike || 0;
+  const topResist1 = sr.top5Resistance[0]?.strike || 0;
+  const topResist2 = sr.top5Resistance[1]?.strike || 0;
+  const atmRow = metrics.completeChain.find(r => r.strike === cs.atmStrike);
+  const atmCeLtp = atmRow?.ceLtp || 250;
+  const atmPeLtp = atmRow?.peLtp || 250;
+
+  const eos1 = topSupport1 > 0 ? Math.round(topSupport1 - atmPeLtp) : 0;
+  const eos2 = topSupport2 > 0 ? Math.round(topSupport2 - atmPeLtp) : 0;
+  const eor1 = topResist1 > 0 ? Math.round(topResist1 + atmCeLtp) : 0;
+  const eor2 = topResist2 > 0 ? Math.round(topResist2 + atmCeLtp) : 0;
+
+  sections.push(`"=== 5. SUPPORT & RESISTANCE & REVERSAL LEVELS ==="`);
+  sections.push(rowsToCsvBlock(
+    ['Reversal Level', 'Calculated Price (₹)', 'Formula Details'],
+    [
+      ['EOS1 (Primary Support Reversal)', eos1, `Strike ${topSupport1} - ATM PE LTP (₹${atmPeLtp.toFixed(1)})`],
+      ['EOS2 (Secondary Support Reversal)', eos2, `Strike ${topSupport2} - ATM PE LTP (₹${atmPeLtp.toFixed(1)})`],
+      ['EOR1 (Primary Resistance Reversal)', eor1, `Strike ${topResist1} + ATM CE LTP (₹${atmCeLtp.toFixed(1)})`],
+      ['EOR2 (Secondary Resistance Reversal)', eor2, `Strike ${topResist2} + ATM CE LTP (₹${atmCeLtp.toFixed(1)})`]
+    ]
+  ));
   sections.push(`"TOP 5 SUPPORT LEVELS (PE OI)"`);
   sections.push(rowsToCsvBlock(
     ['Rank', 'Strike', 'PE OI', 'PE Change OI'],
@@ -143,9 +172,9 @@ export const exportAnalysisToCsv = (metrics: DashboardMetrics) => {
   ));
   sections.push('');
 
-  // 8. Implied Volatility Analysis
+  // 8. Implied Volatility Analysis & Tail Crash Risk
   const iv = metrics.ivAnalysis;
-  sections.push(`"=== 8. IMPLIED VOLATILITY (IV) ANALYSIS ==="`);
+  sections.push(`"=== 8. IMPLIED VOLATILITY (IV) & TAIL CRASH RISK ==="`);
   sections.push(rowsToCsvBlock(
     ['Metric', 'Value'],
     [
@@ -154,7 +183,9 @@ export const exportAnalysisToCsv = (metrics: DashboardMetrics) => {
       ['Average PE IV', `${iv.avgPeIv}%`],
       ['Highest IV Strike', `${iv.highestIvStrike} (${iv.highestIvValue}%)`],
       ['Lowest IV Strike', `${iv.lowestIvStrike} (${iv.lowestIvValue}%)`],
-      ['IV Skew (OTM Put - OTM Call)', `${iv.ivSkew}%`]
+      ['IV Skew (OTM Put - OTM Call)', `${iv.ivSkew}%`],
+      ['Tail Risk Skew (2% OTM PE - 2% OTM CE)', `${iv.tailRiskSkew || Math.round((iv.avgPeIv - iv.avgCeIv) * 100) / 100}%`],
+      ['Tail Crash Risk Status', (iv.tailRiskSkew || 0) > 3.0 ? '🔴 TAIL CRASH RISK WARNING (PE IV Spiking)' : '🟢 NORMAL MARKET VOLATILITY SKEW']
     ]
   ));
   sections.push('');
@@ -223,8 +254,23 @@ export const exportAnalysisToCsv = (metrics: DashboardMetrics) => {
   ));
   sections.push('');
 
-  // 13. Complete Option Chain Table with Quant Metrics
-  sections.push(`"=== 13. COMPLETE OPTION CHAIN TABLE WITH QUANT METRICS ==="`);
+  // 13. Most Active Options
+  const ma = metrics.mostActive;
+  sections.push(`"=== 13. MOST ACTIVE OPTION CONTRACTS ==="`);
+  sections.push(`"TOP 10 BY TRADED VOLUME"`);
+  sections.push(rowsToCsvBlock(
+    ['Rank', 'Strike', 'Type', 'LTP', 'Volume', 'OI'],
+    ma.top10ByVolume.map((r: any, i: number) => [`#${i + 1}`, r.strike, r.type, r.ltp, r.volume, r.oi])
+  ));
+  sections.push(`"TOP 10 BY OPEN INTEREST"`);
+  sections.push(rowsToCsvBlock(
+    ['Rank', 'Strike', 'Type', 'LTP', 'Volume', 'OI'],
+    ma.top10ByOi.map((r: any, i: number) => [`#${i + 1}`, r.strike, r.type, r.ltp, r.volume, r.oi])
+  ));
+  sections.push('');
+
+  // 14. Complete Option Chain Table with Quant Metrics
+  sections.push(`"=== 14. COMPLETE OPTION CHAIN TABLE WITH QUANT METRICS ==="`);
   sections.push(rowsToCsvBlock(
     [
       'CE Intrinsic', 'CE Extrinsic', 'CE POP %', 'CE Touch %', 'CE Delta', 'CE Gamma', 'CE Theta', 'CE Vega', 'CE LTP', 'CE OI', 'CE Chg OI', 'CE Volume', 'CE IV',
@@ -251,9 +297,35 @@ export const exportAnalysisToCsv = (metrics: DashboardMetrics) => {
   ));
   sections.push('');
 
-  // 14. Data Quality Warnings Audit
+  // 15. Step 18 LTP Target & Reversal Calculator Matrix
+  const ltpMatrix = calculateLtpTargetMatrix(
+    metrics.completeChain,
+    ms.spotPrice,
+    ms.spotPrice, // base target
+    0, // iv shift
+    0, // hours
+    ms.daysToExpiry,
+    metrics.riskFreeRate
+  );
+
+  sections.push(`"=== 15. STEP 18 LTP TARGET & REVERSAL CALCULATOR MATRIX ==="`);
+  sections.push(rowsToCsvBlock(
+    [
+      'CE Current LTP', 'CE Target LTP', 'CE ₹ PnL', 'CE % PnL', 'CE Target Intrinsic', 'CE Target Extrinsic', 'CE Target POP %', 'CE Target Touch %', 'EOR Reversal Level',
+      'Strike',
+      'PE Current LTP', 'PE Target LTP', 'PE ₹ PnL', 'PE % PnL', 'PE Target Intrinsic', 'PE Target Extrinsic', 'PE Target POP %', 'PE Target Touch %', 'EOS Reversal Level'
+    ],
+    ltpMatrix.map(r => [
+      r.ceCurrentLtp, r.ceTargetLtp, r.ceDiffRupees, `${r.ceDiffPct}%`, r.ceTargetIntrinsic, r.ceTargetExtrinsic, `${r.ceTargetPop}%`, `${r.ceTargetTouch}%`, r.ceReversalLevel,
+      r.strike,
+      r.peCurrentLtp, r.peTargetLtp, r.peDiffRupees, `${r.peDiffPct}%`, r.peTargetIntrinsic, r.peTargetExtrinsic, `${r.peTargetPop}%`, `${r.peTargetTouch}%`, r.peReversalLevel
+    ])
+  ));
+  sections.push('');
+
+  // 16. Data Quality Warnings Audit
   const w = metrics.warnings;
-  sections.push(`"=== 14. DATA QUALITY WARNINGS AUDIT ==="`);
+  sections.push(`"=== 16. DATA QUALITY WARNINGS AUDIT ==="`);
   sections.push(rowsToCsvBlock(
     ['Category', 'Issue Count'],
     [
