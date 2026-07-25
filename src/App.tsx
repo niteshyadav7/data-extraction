@@ -442,6 +442,9 @@ export function App() {
               optionChain={metrics?.completeChain || []}
               currentSpot={metrics?.marketSummary.spotPrice || 0}
               selectedSymbol={selectedSymbol}
+              supportResistance={metrics?.supportResistance}
+              maxPainStrike={metrics?.maxPain.maxPainStrike}
+              expectedMoveBounds={metrics ? { upper: metrics.expectedMove.upperBound, lower: metrics.expectedMove.lowerBound } : undefined}
               initialTab="IRON_CONDOR"
               onBackToDashboard={() => setCurrentView('DASHBOARD')}
             />
@@ -450,6 +453,9 @@ export function App() {
               optionChain={metrics?.completeChain || []}
               currentSpot={metrics?.marketSummary.spotPrice || 0}
               selectedSymbol={selectedSymbol}
+              supportResistance={metrics?.supportResistance}
+              maxPainStrike={metrics?.maxPain.maxPainStrike}
+              expectedMoveBounds={metrics ? { upper: metrics.expectedMove.upperBound, lower: metrics.expectedMove.lowerBound } : undefined}
               initialTab="ALL"
               onBackToDashboard={() => setCurrentView('DASHBOARD')}
             />
@@ -540,6 +546,9 @@ export function App() {
                   optionChain={metrics.completeChain}
                   currentSpot={metrics.marketSummary.spotPrice}
                   selectedSymbol={selectedSymbol}
+                  supportResistance={metrics.supportResistance}
+                  maxPainStrike={metrics.maxPain.maxPainStrike}
+                  expectedMoveBounds={{ upper: metrics.expectedMove.upperBound, lower: metrics.expectedMove.lowerBound }}
                 />
               </div>
 

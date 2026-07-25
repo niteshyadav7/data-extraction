@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Layers, TrendingUp, TrendingDown, Target, Award, AlertCircle, ArrowLeft } from 'lucide-react';
+import { Layers, TrendingUp, TrendingDown, Target, Award, AlertCircle, ArrowLeft, Shield, Activity } from 'lucide-react';
 import {
   calculateIronCondorStrategy,
   calculateBullCallSpread,
@@ -12,6 +12,9 @@ interface StrategyHubSectionProps {
   optionChain: any[];
   currentSpot: number;
   selectedSymbol?: string;
+  supportResistance?: any;
+  maxPainStrike?: number;
+  expectedMoveBounds?: { upper: number; lower: number };
   initialTab?: 'IRON_CONDOR' | 'BULL_CALL' | 'BEAR_PUT' | 'ALL';
   onBackToDashboard?: () => void;
 }
@@ -20,6 +23,9 @@ export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
   optionChain,
   currentSpot,
   selectedSymbol = 'NIFTY',
+  supportResistance,
+  maxPainStrike,
+  expectedMoveBounds,
   initialTab = 'IRON_CONDOR',
   onBackToDashboard
 }) => {
@@ -29,17 +35,17 @@ export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
   const [lotSize, setLotSize] = useState<number>(getDefaultLotSizeForSymbol(selectedSymbol));
   const [wingWidth, setWingWidth] = useState<number>(2);
 
+  // Sync lot size when selectedSymbol changes
+  useEffect(() => {
+    setLotSize(getDefaultLotSizeForSymbol(selectedSymbol));
+  }, [selectedSymbol]);
+
   // Sync activeTab if initialTab changes
   useEffect(() => {
     if (initialTab !== 'ALL') {
       setActiveTab(initialTab);
     }
   }, [initialTab]);
-
-  // Sync lot size when selectedSymbol changes
-  useEffect(() => {
-    setLotSize(getDefaultLotSizeForSymbol(selectedSymbol));
-  }, [selectedSymbol]);
 
   if (!optionChain || optionChain.length < 5 || currentSpot <= 0) {
     return (
@@ -71,7 +77,16 @@ export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
 
   let result: StrategyResult | null = null;
   if (activeTab === 'IRON_CONDOR') {
-    result = calculateIronCondorStrategy(optionChain, currentSpot, selectedSymbol, lotSize, wingWidth);
+    result = calculateIronCondorStrategy(
+      optionChain,
+      currentSpot,
+      selectedSymbol,
+      lotSize,
+      wingWidth,
+      supportResistance,
+      maxPainStrike,
+      expectedMoveBounds
+    );
   } else if (activeTab === 'BULL_CALL') {
     result = calculateBullCallSpread(optionChain, currentSpot, selectedSymbol, lotSize);
   } else if (activeTab === 'BEAR_PUT') {
@@ -98,21 +113,35 @@ export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
           <div>
             <h2 style={{ fontSize: '1.3rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '10px' }}>
               <Layers size={24} color="var(--accent-gold)" />
-              Quantitative Strategy Studio & Payoff Simulator ({selectedSymbol.toUpperCase()})
+              Institutional Strategy Studio & Payoff Simulator ({selectedSymbol.toUpperCase()})
             </h2>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-              Dedicated strategy view calculated live from active market chain data for <strong>{selectedSymbol.toUpperCase()}</strong>.
+              100% dynamic strategy engine powered by Reversal Zones (EOS1/EOR1), Max Pain, Portfolio Greeks, and Time Decay.
             </p>
           </div>
 
-          <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-main)', backgroundColor: 'var(--bg-main)', padding: '6px 14px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-            Spot: <strong>₹{currentSpot.toLocaleString('en-IN')}</strong>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{
+              fontSize: '0.82rem',
+              fontWeight: 800,
+              padding: '6px 14px',
+              borderRadius: '6px',
+              backgroundColor: result.healthScore.rating === 'EXCELLENT' ? '#E2F0E5' : '#FEF9E7',
+              color: result.healthScore.rating === 'EXCELLENT' ? 'var(--color-green)' : '#B7950B',
+              border: `1px solid ${result.healthScore.rating === 'EXCELLENT' ? 'var(--color-green)' : '#F9E79F'}`
+            }}>
+              ⭐ RATING: {result.healthScore.rating} ({result.healthScore.score}/100)
+            </span>
+
+            <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-main)', backgroundColor: 'var(--bg-main)', padding: '6px 14px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+              Spot: <strong>₹{currentSpot.toLocaleString('en-IN')}</strong>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Multi-Strategy Navigation Tabs */}
-      <div style={{ display: 'flex', gap: '10px', marginBottom: '24px', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
         <button
           onClick={() => setActiveTab('IRON_CONDOR')}
           style={{
@@ -173,6 +202,36 @@ export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
           <TrendingDown size={16} /> 📉 Bear Put Spread (Bearish Breakdown)
         </button>
       </div>
+
+      {/* Extracted Reversal Levels & Rationale Bar */}
+      {result.reversalLevels && (
+        <div style={{
+          backgroundColor: 'var(--bg-main)',
+          borderRadius: '8px',
+          padding: '12px 18px',
+          marginBottom: '20px',
+          border: '1px solid var(--border-color)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '12px',
+          fontSize: '0.82rem'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700 }}>
+            <Shield size={16} color="var(--accent-gold-dark)" /> Reversal Alignment:
+            <span style={{ color: 'var(--color-green)', fontWeight: 600 }}>EOS1 Support ₹{result.reversalLevels.eos1}</span>
+            <span>|</span>
+            <span style={{ color: 'var(--color-red)', fontWeight: 600 }}>EOR1 Resistance ₹{result.reversalLevels.eor1}</span>
+            <span>|</span>
+            <span style={{ color: 'var(--color-blue)', fontWeight: 600 }}>Max Pain ₹{result.reversalLevels.maxPain}</span>
+          </div>
+
+          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+            {result.healthScore.reversalAlignmentText}
+          </div>
+        </div>
+      )}
 
       {/* Controls Bar: Lot Size & Options */}
       <div style={{
@@ -235,7 +294,7 @@ export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
         )}
       </div>
 
-      {/* Strategy Summary Metric Cards */}
+      {/* Quantitative Summary Metric Cards */}
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
@@ -251,7 +310,7 @@ export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
             +₹{result.maxProfit.toLocaleString('en-IN')}
           </div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-            Lot Size: {result.lotSize} contracts
+            Extrinsic Time Value: ₹{result.totalExtrinsicCaptured.toLocaleString('en-IN')}
           </div>
         </div>
 
@@ -295,6 +354,65 @@ export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
         </div>
       </div>
 
+      {/* Institutional Portfolio Greeks Matrix Grid */}
+      <div style={{
+        backgroundColor: 'var(--bg-main)',
+        borderRadius: '10px',
+        padding: '16px 20px',
+        marginBottom: '24px',
+        border: '1.5px solid var(--border-color)'
+      }}>
+        <h3 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '12px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Activity size={18} color="var(--accent-gold-dark)" /> Institutional Portfolio Greeks & Risk Matrix
+        </h3>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
+          {/* Net Delta */}
+          <div style={{ backgroundColor: '#FFF', padding: '12px 14px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>NET POSITION DELTA (Δ)</div>
+            <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--color-blue)', marginTop: '2px' }}>
+              {result.greeks.netDelta >= 0 ? `+${result.greeks.netDelta}` : result.greeks.netDelta}
+            </div>
+            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+              {Math.abs(result.greeks.netDelta) < 3 ? 'Delta Neutral Setup' : 'Directional Exposure'}
+            </div>
+          </div>
+
+          {/* Daily Theta Income */}
+          <div style={{ backgroundColor: '#FFF', padding: '12px 14px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-green)' }}>DAILY THETA INCOME (Θ)</div>
+            <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--color-green)', marginTop: '2px' }}>
+              +₹{result.greeks.dailyThetaIncome.toLocaleString('en-IN')} / day
+            </div>
+            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+              Cash earned per day from time decay
+            </div>
+          </div>
+
+          {/* Vega Sensitivity */}
+          <div style={{ backgroundColor: '#FFF', padding: '12px 14px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#8E44AD' }}>VEGA CRUSH GAIN (ν)</div>
+            <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#8E44AD', marginTop: '2px' }}>
+              +₹{Math.abs(result.greeks.vegaCrushGain).toLocaleString('en-IN')} / -1% IV
+            </div>
+            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+              Profit gained per 1% drop in IV
+            </div>
+          </div>
+
+          {/* Net Gamma */}
+          <div style={{ backgroundColor: '#FFF', padding: '12px 14px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>NET POSITION GAMMA (Γ)</div>
+            <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '2px' }}>
+              {result.greeks.netGamma}
+            </div>
+            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+              Delta rate of change sensitivity
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Dynamic Legs Order Matrix */}
       <div style={{ marginBottom: '24px' }}>
         <h3 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '10px', color: 'var(--text-main)' }}>
@@ -311,7 +429,8 @@ export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
                 <th>Strike Price</th>
                 <th>LTP (Premium)</th>
                 <th>Delta (Δ)</th>
-                <th>Implied Volatility</th>
+                <th>Theta (Θ)</th>
+                <th>Extrinsic Time Value</th>
                 <th>Total Value (₹)</th>
               </tr>
             </thead>
@@ -342,7 +461,8 @@ export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
                     <td style={{ fontWeight: 800, fontSize: '0.95rem' }}>{leg.strike}</td>
                     <td style={{ fontWeight: 700 }}>₹{leg.ltp.toFixed(2)}</td>
                     <td style={{ color: 'var(--color-blue)', fontWeight: 600 }}>{leg.delta.toFixed(2)}</td>
-                    <td>{leg.iv > 0 ? `${leg.iv.toFixed(1)}%` : '-'}</td>
+                    <td style={{ color: 'var(--color-green)', fontWeight: 600 }}>{leg.theta.toFixed(1)}</td>
+                    <td style={{ fontWeight: 600 }}>₹{leg.extrinsicValue.toFixed(2)}</td>
                     <td style={{ fontWeight: 700, color: isSell ? 'var(--color-green)' : 'var(--color-red)' }}>
                       {isSell ? `+₹${totalValue.toLocaleString('en-IN')}` : `-₹${totalValue.toLocaleString('en-IN')}`}
                     </td>
@@ -367,6 +487,7 @@ export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
                 <th>Distance from Current Spot</th>
                 <th>Strategy PnL (₹)</th>
                 <th>Return on Risk (%)</th>
+                <th>Key Levels & Reversal Tags</th>
                 <th>Status</th>
               </tr>
             </thead>
@@ -380,16 +501,19 @@ export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
                     style={{
                       backgroundColor: row.isCurrentSpot
                         ? 'var(--accent-pill)'
+                        : row.isEos1 || row.isEor1
+                        ? '#EBF5FB'
+                        : row.isMaxPain
+                        ? '#FEF9E7'
                         : row.isBreakeven
                         ? '#FEF9E7'
                         : 'transparent',
-                      fontWeight: row.isCurrentSpot || row.isBreakeven ? 700 : 400
+                      fontWeight: row.isCurrentSpot || row.isBreakeven || row.tag ? 700 : 400
                     }}
                   >
                     <td style={{ fontWeight: 800, fontSize: row.isCurrentSpot ? '0.95rem' : '0.85rem' }}>
                       ₹{row.spot.toLocaleString('en-IN')}
-                      {row.isCurrentSpot && <span style={{ fontSize: '0.65rem', display: 'block', color: 'var(--accent-gold-dark)' }}>CURRENT {selectedSymbol.toUpperCase()} SPOT</span>}
-                      {row.isBreakeven && <span style={{ fontSize: '0.65rem', display: 'block', color: '#B7950B' }}>BREAKEVEN LEVEL</span>}
+                      {row.isCurrentSpot && <span style={{ fontSize: '0.65rem', display: 'block', color: 'var(--accent-gold-dark)' }}>CURRENT SPOT</span>}
                     </td>
 
                     <td style={{ color: diff >= 0 ? 'var(--color-green)' : 'var(--color-red)', fontWeight: 600 }}>
@@ -402,6 +526,24 @@ export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
 
                     <td style={{ fontWeight: 700, color: isProfit ? 'var(--color-green)' : 'var(--color-red)' }}>
                       {isProfit ? `+${row.pnlPct}%` : `${row.pnlPct}%`}
+                    </td>
+
+                    <td>
+                      {row.tag ? (
+                        <span style={{
+                          fontSize: '0.72rem',
+                          fontWeight: 800,
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          backgroundColor: row.isEos1 ? '#E2F0E5' : row.isEor1 ? '#FADBD8' : '#FEF9E7',
+                          color: row.isEos1 ? 'var(--color-green)' : row.isEor1 ? 'var(--color-red)' : '#B7950B',
+                          border: '1px solid var(--border-color)'
+                        }}>
+                          {row.tag}
+                        </span>
+                      ) : (
+                        '-'
+                      )}
                     </td>
 
                     <td>

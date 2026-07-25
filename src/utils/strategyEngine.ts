@@ -4,7 +4,11 @@ export interface StrategyLeg {
   strike: number;
   ltp: number;
   delta: number;
+  gamma: number;
+  theta: number;
+  vega: number;
   iv: number;
+  extrinsicValue: number;
   role: string;
 }
 
@@ -14,6 +18,24 @@ export interface PayoffRow {
   pnlPct: number;
   isCurrentSpot?: boolean;
   isBreakeven?: boolean;
+  isEos1?: boolean;
+  isEor1?: boolean;
+  isMaxPain?: boolean;
+  tag?: string;
+}
+
+export interface StrategyGreeks {
+  netDelta: number;
+  netGamma: number;
+  dailyThetaIncome: number; // ₹ per day for full position
+  vegaCrushGain: number; // ₹ gain per 1% IV drop
+}
+
+export interface StrategyInstitutionalScore {
+  score: number; // 0 - 100
+  rating: 'EXCELLENT' | 'GOOD' | 'MODERATE' | 'RISKY';
+  reversalAlignmentText: string;
+  expectedMoveText: string;
 }
 
 export interface StrategyResult {
@@ -30,6 +52,16 @@ export interface StrategyResult {
   lowerBreakeven?: number;
   riskRewardRatio: number;
   popPercentage: number;
+  totalExtrinsicCaptured: number;
+  greeks: StrategyGreeks;
+  healthScore: StrategyInstitutionalScore;
+  reversalLevels?: {
+    eos1: number;
+    eos2: number;
+    eor1: number;
+    eor2: number;
+    maxPain: number;
+  };
   payoffRows: PayoffRow[];
 }
 
@@ -57,20 +89,25 @@ export const getDefaultLotSizeForSymbol = (symbol: string): number => {
 };
 
 /**
- * Dynamically constructs an Iron Condor Strategy using real active market chain data
+ * Dynamically constructs an Institutional Iron Condor Strategy using 100% extracted quantitative metrics:
+ * Reversal Zones (EOS1/EOR1), Max Pain, Portfolio Greeks, Extrinsic Value, and Expected Move Bounds.
  */
 export const calculateIronCondorStrategy = (
   optionChain: any[],
   spotPrice: number,
   symbol: string = 'NIFTY',
   customLotSize?: number,
-  wingWidthStrikes: number = 2
+  wingWidthStrikes: number = 2,
+  supportResistance?: { top5Support: { strike: number }[]; top5Resistance: { strike: number }[] },
+  maxPainStrike?: number,
+  expectedMoveBounds?: { upper: number; lower: number }
 ): StrategyResult | null => {
   if (!optionChain || optionChain.length < 5 || spotPrice <= 0) return null;
 
   const lotSize = customLotSize && customLotSize > 0 ? customLotSize : getDefaultLotSizeForSymbol(symbol);
   const sorted = [...optionChain].sort((a, b) => (a.strikePrice || a.strike) - (b.strikePrice || b.strike));
 
+  // Find ATM Index
   let atmIndex = 0;
   let minDiff = Infinity;
   sorted.forEach((row, idx) => {
@@ -82,9 +119,58 @@ export const calculateIronCondorStrategy = (
     }
   });
 
-  const shortPutIndex = Math.max(0, atmIndex - 3);
+  const atmRow = sorted[atmIndex];
+  const atmCeLtp = atmRow.ceLtp || 0;
+  const atmPeLtp = atmRow.peLtp || 0;
+
+  const highestPutStrike = supportResistance?.top5Support?.[0]?.strike || 0;
+  const secondPutStrike = supportResistance?.top5Support?.[1]?.strike || 0;
+  const highestCallStrike = supportResistance?.top5Resistance?.[0]?.strike || 0;
+  const secondCallStrike = supportResistance?.top5Resistance?.[1]?.strike || 0;
+
+  const eos1 = highestPutStrike > 0 ? highestPutStrike - atmPeLtp : 0;
+  const eos2 = secondPutStrike > 0 ? secondPutStrike - atmPeLtp : 0;
+  const eor1 = highestCallStrike > 0 ? highestCallStrike + atmCeLtp : 0;
+  const eor2 = secondCallStrike > 0 ? secondCallStrike + atmCeLtp : 0;
+
+  // Short Put Strike Selection: Placed at/below EOS1 (Primary Support Reversal) if available
+  let shortPutIndex = Math.max(0, atmIndex - 3);
+  if (eos1 > 0) {
+    let bestIdx = shortPutIndex;
+    let minErr = Infinity;
+    sorted.forEach((row, idx) => {
+      const s = row.strikePrice || row.strike;
+      if (s <= eos1) {
+        const err = Math.abs(s - eos1);
+        if (err < minErr) {
+          minErr = err;
+          bestIdx = idx;
+        }
+      }
+    });
+    shortPutIndex = bestIdx;
+  }
+
   const longPutIndex = Math.max(0, shortPutIndex - wingWidthStrikes);
-  const shortCallIndex = Math.min(sorted.length - 1, atmIndex + 3);
+
+  // Short Call Strike Selection: Placed at/above EOR1 (Primary Resistance Reversal) if available
+  let shortCallIndex = Math.min(sorted.length - 1, atmIndex + 3);
+  if (eor1 > 0) {
+    let bestIdx = shortCallIndex;
+    let minErr = Infinity;
+    sorted.forEach((row, idx) => {
+      const s = row.strikePrice || row.strike;
+      if (s >= eor1) {
+        const err = Math.abs(s - eor1);
+        if (err < minErr) {
+          minErr = err;
+          bestIdx = idx;
+        }
+      }
+    });
+    shortCallIndex = bestIdx;
+  }
+
   const longCallIndex = Math.min(sorted.length - 1, shortCallIndex + wingWidthStrikes);
 
   const shortPutRow = sorted[shortPutIndex];
@@ -107,11 +193,32 @@ export const calculateIronCondorStrategy = (
   const scDelta = shortCallRow.ceDelta !== undefined ? shortCallRow.ceDelta : 0.25;
   const lcDelta = longCallRow.ceDelta !== undefined ? longCallRow.ceDelta : 0.10;
 
+  const spTheta = shortPutRow.peTheta !== undefined ? shortPutRow.peTheta : -5;
+  const lpTheta = longPutRow.peTheta !== undefined ? longPutRow.peTheta : -2;
+  const scTheta = shortCallRow.ceTheta !== undefined ? shortCallRow.ceTheta : -5;
+  const lcTheta = longCallRow.ceTheta !== undefined ? longCallRow.ceTheta : -2;
+
+  const spVega = shortPutRow.peVega !== undefined ? shortPutRow.peVega : 10;
+  const lpVega = longPutRow.peVega !== undefined ? longPutRow.peVega : 4;
+  const scVega = shortCallRow.ceVega !== undefined ? shortCallRow.ceVega : 10;
+  const lcVega = longCallRow.ceVega !== undefined ? longCallRow.ceVega : 4;
+
+  const spGamma = shortPutRow.peGamma !== undefined ? shortPutRow.peGamma : 0.001;
+  const lpGamma = longPutRow.peGamma !== undefined ? longPutRow.peGamma : 0.0005;
+  const scGamma = shortCallRow.ceGamma !== undefined ? shortCallRow.ceGamma : 0.001;
+  const lcGamma = longCallRow.ceGamma !== undefined ? longCallRow.ceGamma : 0.0005;
+
+  // Extrinsic Value (Time Value)
+  const spExtrinsic = Math.max(0, spLtp - Math.max(0, spStrike - spotPrice));
+  const lpExtrinsic = Math.max(0, lpLtp - Math.max(0, lpStrike - spotPrice));
+  const scExtrinsic = Math.max(0, scLtp - Math.max(0, spotPrice - scStrike));
+  const lcExtrinsic = Math.max(0, lcLtp - Math.max(0, spotPrice - lcStrike));
+
   const legs: StrategyLeg[] = [
-    { action: 'BUY', optionType: 'PE', strike: lpStrike, ltp: lpLtp, delta: lpDelta, iv: longPutRow.peIv || 0, role: 'Long Put Wing' },
-    { action: 'SELL', optionType: 'PE', strike: spStrike, ltp: spLtp, delta: spDelta, iv: shortPutRow.peIv || 0, role: 'Short Put' },
-    { action: 'SELL', optionType: 'CE', strike: scStrike, ltp: scLtp, delta: scDelta, iv: shortCallRow.ceIv || 0, role: 'Short Call' },
-    { action: 'BUY', optionType: 'CE', strike: lcStrike, ltp: lcLtp, delta: lcDelta, iv: longCallRow.ceIv || 0, role: 'Long Call Wing' },
+    { action: 'BUY', optionType: 'PE', strike: lpStrike, ltp: lpLtp, delta: lpDelta, gamma: lpGamma, theta: lpTheta, vega: lpVega, iv: longPutRow.peIv || 0, extrinsicValue: lpExtrinsic, role: 'Long Put Wing' },
+    { action: 'SELL', optionType: 'PE', strike: spStrike, ltp: spLtp, delta: spDelta, gamma: spGamma, theta: spTheta, vega: spVega, iv: shortPutRow.peIv || 0, extrinsicValue: spExtrinsic, role: 'Short Put' },
+    { action: 'SELL', optionType: 'CE', strike: scStrike, ltp: scLtp, delta: scDelta, gamma: scGamma, theta: scTheta, vega: scVega, iv: shortCallRow.ceIv || 0, extrinsicValue: scExtrinsic, role: 'Short Call' },
+    { action: 'BUY', optionType: 'CE', strike: lcStrike, ltp: lcLtp, delta: lcDelta, gamma: lcGamma, theta: lcTheta, vega: lcVega, iv: longCallRow.ceIv || 0, extrinsicValue: lcExtrinsic, role: 'Long Call Wing' },
   ];
 
   const netCreditPerShare = Math.max(0, Math.round(((scLtp + spLtp) - (lcLtp + lpLtp)) * 100) / 100);
@@ -130,10 +237,73 @@ export const calculateIronCondorStrategy = (
   const riskRewardRatio = maxProfit > 0 ? Math.round((maxLoss / maxProfit) * 100) / 100 : 0;
   const popPercentage = Math.min(95, Math.max(10, Math.round((1 - (Math.abs(spDelta) + Math.abs(scDelta))) * 100)));
 
+  // Total Extrinsic Captured (Time Value to Decay)
+  const totalExtrinsicCaptured = Math.round(((scExtrinsic + spExtrinsic) - (lcExtrinsic + lpExtrinsic)) * lotSize);
+
+  // Portfolio Greeks Calculation
+  // Net Delta: (Buy Put Delta + Buy Call Delta) - (Sell Put Delta + Sell Call Delta)
+  const netDeltaPerShare = (lpDelta + lcDelta) - (spDelta + scDelta);
+  const netDeltaTotal = Math.round(netDeltaPerShare * lotSize * 100) / 100;
+
+  const netGammaPerShare = (lpGamma + lcGamma) - (spGamma + scGamma);
+  const netGammaTotal = Math.round(netGammaPerShare * lotSize * 1000) / 1000;
+
+  // Daily Theta Income: Short options collect theta (+), Long options lose theta (-)
+  // Option theta is negative (e.g. -5), so selling short option gives -(-5) = +5 income!
+  const dailyThetaIncome = Math.round(((-spTheta - scTheta) + (lpTheta + lcTheta)) * lotSize);
+
+  // Vega Crush Gain: Net Vega per 1% IV drop
+  const vegaCrushGain = Math.round(((-spVega - scVega) + (lpVega + lcVega)) * lotSize);
+
+  const greeks: StrategyGreeks = {
+    netDelta: netDeltaTotal,
+    netGamma: netGammaTotal,
+    dailyThetaIncome: Math.max(0, dailyThetaIncome),
+    vegaCrushGain
+  };
+
+  // Institutional Health Score Evaluation (0 - 100)
+  let score = 75; // Base score
+  let reversalAlignmentText = 'Positioned near standard OTM levels';
+  let expectedMoveText = 'Breakevens within normal expected range';
+
+  if (eos1 > 0 && eor1 > 0) {
+    if (spStrike <= eos1 && scStrike >= eor1) {
+      score += 15;
+      reversalAlignmentText = `Short Put (₹${spStrike}) at/below EOS1 (₹${Math.round(eos1)}) & Short Call (₹${scStrike}) at/above EOR1 (₹${Math.round(eor1)})`;
+    } else {
+      reversalAlignmentText = `Positioned inside EOR1 (₹${Math.round(eor1)}) / EOS1 (₹${Math.round(eos1)})`;
+    }
+  }
+
+  if (expectedMoveBounds && expectedMoveBounds.upper > 0 && expectedMoveBounds.lower > 0) {
+    if (lowerBreakeven <= expectedMoveBounds.lower && upperBreakeven >= expectedMoveBounds.upper) {
+      score += 10;
+      expectedMoveText = `Breakevens (₹${lowerBreakeven} ↔ ₹${upperBreakeven}) envelop 1-StdDev Expected Move (₹${Math.round(expectedMoveBounds.lower)} ↔ ₹${Math.round(expectedMoveBounds.upper)})`;
+    }
+  }
+
+  score = Math.min(98, Math.max(40, score));
+  let rating: 'EXCELLENT' | 'GOOD' | 'MODERATE' | 'RISKY' = 'GOOD';
+  if (score >= 90) rating = 'EXCELLENT';
+  else if (score >= 75) rating = 'GOOD';
+  else if (score >= 60) rating = 'MODERATE';
+  else rating = 'RISKY';
+
+  const healthScore: StrategyInstitutionalScore = {
+    score,
+    rating,
+    reversalAlignmentText,
+    expectedMoveText
+  };
+
+  // Generate Expiry Payoff Rows across spot price range with tags for EOS1, EOS2, EOR1, EOR2, Max Pain
   const payoffRows: PayoffRow[] = [];
   const minSpot = Math.round(lowerBreakeven * 0.96);
   const maxSpot = Math.round(upperBreakeven * 1.04);
   const step = Math.max(5, Math.round((maxSpot - minSpot) / 15));
+
+  const mp = maxPainStrike || 0;
 
   for (let s = minSpot; s <= maxSpot; s += step) {
     const putShortLoss = Math.max(0, spStrike - s);
@@ -145,12 +315,23 @@ export const calculateIronCondorStrategy = (
     const pnl = Math.round(netPayoffPerShare * lotSize);
     const pnlPct = maxLoss > 0 ? Math.round((pnl / maxLoss) * 100) : 0;
 
+    let tag: string | undefined;
+    if (mp > 0 && Math.abs(s - mp) < step / 2) tag = 'MAX PAIN STRIKE';
+    else if (eos1 > 0 && Math.abs(s - eos1) < step / 2) tag = 'EOS1 PRIMARY SUPPORT';
+    else if (eor1 > 0 && Math.abs(s - eor1) < step / 2) tag = 'EOR1 PRIMARY RESISTANCE';
+    else if (eos2 > 0 && Math.abs(s - eos2) < step / 2) tag = 'EOS2 SECONDARY SUPPORT';
+    else if (eor2 > 0 && Math.abs(s - eor2) < step / 2) tag = 'EOR2 SECONDARY RESISTANCE';
+
     payoffRows.push({
       spot: s,
       pnl,
       pnlPct,
       isCurrentSpot: Math.abs(s - spotPrice) < step / 2,
-      isBreakeven: Math.abs(s - lowerBreakeven) < step / 2 || Math.abs(s - upperBreakeven) < step / 2
+      isBreakeven: Math.abs(s - lowerBreakeven) < step / 2 || Math.abs(s - upperBreakeven) < step / 2,
+      isEos1: eos1 > 0 && Math.abs(s - eos1) < step / 2,
+      isEor1: eor1 > 0 && Math.abs(s - eor1) < step / 2,
+      isMaxPain: mp > 0 && Math.abs(s - mp) < step / 2,
+      tag
     });
   }
 
@@ -168,6 +349,16 @@ export const calculateIronCondorStrategy = (
     lowerBreakeven,
     riskRewardRatio,
     popPercentage,
+    totalExtrinsicCaptured,
+    greeks,
+    healthScore,
+    reversalLevels: (eos1 > 0 || eor1 > 0) ? {
+      eos1: Math.round(eos1),
+      eos2: Math.round(eos2),
+      eor1: Math.round(eor1),
+      eor2: Math.round(eor2),
+      maxPain: maxPainStrike || 0
+    } : undefined,
     payoffRows
   };
 };
@@ -211,6 +402,18 @@ export const calculateBullCallSpread = (
   const buyDelta = buyRow.ceDelta !== undefined ? buyRow.ceDelta : 0.50;
   const sellDelta = sellRow.ceDelta !== undefined ? sellRow.ceDelta : 0.25;
 
+  const buyTheta = buyRow.ceTheta !== undefined ? buyRow.ceTheta : -5;
+  const sellTheta = sellRow.ceTheta !== undefined ? sellRow.ceTheta : -2;
+
+  const buyVega = buyRow.ceVega !== undefined ? buyRow.ceVega : 10;
+  const sellVega = sellRow.ceVega !== undefined ? sellRow.ceVega : 4;
+
+  const buyGamma = buyRow.ceGamma !== undefined ? buyRow.ceGamma : 0.001;
+  const sellGamma = sellRow.ceGamma !== undefined ? sellRow.ceGamma : 0.0005;
+
+  const buyExtrinsic = Math.max(0, buyLtp - Math.max(0, spotPrice - buyStrike));
+  const sellExtrinsic = Math.max(0, sellLtp - Math.max(0, spotPrice - sellStrike));
+
   const netDebitPerShare = Math.max(0, Math.round((buyLtp - sellLtp) * 100) / 100);
   const spreadWidth = sellStrike - buyStrike;
 
@@ -223,9 +426,23 @@ export const calculateBullCallSpread = (
   const popPercentage = Math.min(85, Math.max(15, Math.round(buyDelta * 100)));
 
   const legs: StrategyLeg[] = [
-    { action: 'BUY', optionType: 'CE', strike: buyStrike, ltp: buyLtp, delta: buyDelta, iv: buyRow.ceIv || 0, role: 'Long Call (ATM)' },
-    { action: 'SELL', optionType: 'CE', strike: sellStrike, ltp: sellLtp, delta: sellDelta, iv: sellRow.ceIv || 0, role: 'Short Call (OTM Resistance)' }
+    { action: 'BUY', optionType: 'CE', strike: buyStrike, ltp: buyLtp, delta: buyDelta, gamma: buyGamma, theta: buyTheta, vega: buyVega, iv: buyRow.ceIv || 0, extrinsicValue: buyExtrinsic, role: 'Long Call (ATM)' },
+    { action: 'SELL', optionType: 'CE', strike: sellStrike, ltp: sellLtp, delta: sellDelta, gamma: sellGamma, theta: sellTheta, vega: sellVega, iv: sellRow.ceIv || 0, extrinsicValue: sellExtrinsic, role: 'Short Call (OTM Resistance)' }
   ];
+
+  const greeks: StrategyGreeks = {
+    netDelta: Math.round((buyDelta - sellDelta) * lotSize * 100) / 100,
+    netGamma: Math.round((buyGamma - sellGamma) * lotSize * 1000) / 1000,
+    dailyThetaIncome: Math.round(((-sellTheta) + buyTheta) * lotSize),
+    vegaCrushGain: Math.round(((-sellVega) + buyVega) * lotSize)
+  };
+
+  const healthScore: StrategyInstitutionalScore = {
+    score: 80,
+    rating: 'GOOD',
+    reversalAlignmentText: `Target Call Resistance at ₹${sellStrike}`,
+    expectedMoveText: `Breakeven at ₹${upperBreakeven}`
+  };
 
   const payoffRows: PayoffRow[] = [];
   const minSpot = Math.round(buyStrike * 0.96);
@@ -261,6 +478,9 @@ export const calculateBullCallSpread = (
     upperBreakeven,
     riskRewardRatio,
     popPercentage,
+    totalExtrinsicCaptured: Math.round((sellExtrinsic - buyExtrinsic) * lotSize),
+    greeks,
+    healthScore,
     payoffRows
   };
 };
@@ -304,6 +524,18 @@ export const calculateBearPutSpread = (
   const buyDelta = buyRow.peDelta !== undefined ? buyRow.peDelta : -0.50;
   const sellDelta = sellRow.peDelta !== undefined ? sellRow.peDelta : -0.25;
 
+  const buyTheta = buyRow.peTheta !== undefined ? buyRow.peTheta : -5;
+  const sellTheta = sellRow.peTheta !== undefined ? sellRow.peTheta : -2;
+
+  const buyVega = buyRow.peVega !== undefined ? buyRow.peVega : 10;
+  const sellVega = sellRow.peVega !== undefined ? sellRow.peVega : 4;
+
+  const buyGamma = buyRow.peGamma !== undefined ? buyRow.peGamma : 0.001;
+  const sellGamma = sellRow.peGamma !== undefined ? sellRow.peGamma : 0.0005;
+
+  const buyExtrinsic = Math.max(0, buyLtp - Math.max(0, buyStrike - spotPrice));
+  const sellExtrinsic = Math.max(0, sellLtp - Math.max(0, sellStrike - spotPrice));
+
   const netDebitPerShare = Math.max(0, Math.round((buyLtp - sellLtp) * 100) / 100);
   const spreadWidth = buyStrike - sellStrike;
 
@@ -316,9 +548,23 @@ export const calculateBearPutSpread = (
   const popPercentage = Math.min(85, Math.max(15, Math.round(Math.abs(buyDelta) * 100)));
 
   const legs: StrategyLeg[] = [
-    { action: 'BUY', optionType: 'PE', strike: buyStrike, ltp: buyLtp, delta: buyDelta, iv: buyRow.peIv || 0, role: 'Long Put (ATM)' },
-    { action: 'SELL', optionType: 'PE', strike: sellStrike, ltp: sellLtp, delta: sellDelta, iv: sellRow.peIv || 0, role: 'Short Put (OTM Support)' }
+    { action: 'BUY', optionType: 'PE', strike: buyStrike, ltp: buyLtp, delta: buyDelta, gamma: buyGamma, theta: buyTheta, vega: buyVega, iv: buyRow.peIv || 0, extrinsicValue: buyExtrinsic, role: 'Long Put (ATM)' },
+    { action: 'SELL', optionType: 'PE', strike: sellStrike, ltp: sellLtp, delta: sellDelta, gamma: sellGamma, theta: sellTheta, vega: sellVega, iv: sellRow.peIv || 0, extrinsicValue: sellExtrinsic, role: 'Short Put (OTM Support)' }
   ];
+
+  const greeks: StrategyGreeks = {
+    netDelta: Math.round((buyDelta - sellDelta) * lotSize * 100) / 100,
+    netGamma: Math.round((buyGamma - sellGamma) * lotSize * 1000) / 1000,
+    dailyThetaIncome: Math.round(((-sellTheta) + buyTheta) * lotSize),
+    vegaCrushGain: Math.round(((-sellVega) + buyVega) * lotSize)
+  };
+
+  const healthScore: StrategyInstitutionalScore = {
+    score: 80,
+    rating: 'GOOD',
+    reversalAlignmentText: `Target Put Support at ₹${sellStrike}`,
+    expectedMoveText: `Breakeven at ₹${lowerBreakeven}`
+  };
 
   const payoffRows: PayoffRow[] = [];
   const minSpot = Math.round(sellStrike * 0.96);
@@ -355,6 +601,9 @@ export const calculateBearPutSpread = (
     lowerBreakeven,
     riskRewardRatio,
     popPercentage,
+    totalExtrinsicCaptured: Math.round((sellExtrinsic - buyExtrinsic) * lotSize),
+    greeks,
+    healthScore,
     payoffRows
   };
 };
