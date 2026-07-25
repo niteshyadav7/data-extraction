@@ -193,14 +193,23 @@ export function App() {
   const fetchSymbolData = async (symbol = 'NIFTY', type: 'INDEX' | 'STOCK' = 'INDEX') => {
     let success = false;
 
-    // 1. Try Live CORS Proxy Server for the selected symbol
-    try {
-      const res = await fetch(`http://localhost:3001/api/live-data?symbol=${encodeURIComponent(symbol)}&type=${type}`);
-      if (res.ok) {
-        const json = await res.json();
-        if (json && json.records && json.records.data && json.records.data.length > 0) {
-          const records = json.records;
-          const data = records.data || [];
+    // 1. Try Live Python API Server or CORS Proxy for the selected symbol
+    const apiBase = (import.meta.env.VITE_API_BASE_URL as string) || '';
+    const apiEndpoints = apiBase 
+      ? [`${apiBase}/api/live-data?symbol=${encodeURIComponent(symbol)}&type=${type}`]
+      : [
+          `http://localhost:8000/api/live-data?symbol=${encodeURIComponent(symbol)}&type=${type}`,
+          `http://localhost:3001/api/live-data?symbol=${encodeURIComponent(symbol)}&type=${type}`
+        ];
+
+    for (const endpoint of apiEndpoints) {
+      try {
+        const res = await fetch(endpoint);
+        if (res.ok) {
+          const json = await res.json();
+          if (json && json.records && json.records.data && json.records.data.length > 0) {
+            const records = json.records;
+            const data = records.data || [];
           const underlyingVal = records.underlyingValue || 0;
           const expiryDates = records.expiryDates || [];
           const targetExpiry = expiryDates[0] || '';
@@ -308,11 +317,13 @@ export function App() {
 
           setMetrics(calculated);
           success = true;
+          break;
         }
       }
     } catch (e) {
       console.warn(`Proxy live fetch notice for ${symbol}:`, e);
     }
+  }
 
     // 2. Fallback for ANY symbol
     if (!success) {

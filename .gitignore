@@ -27,3 +27,8 @@ dist-ssr
 analysis.csv
 analysis.xlsx
 *.xlsx
+
+# Python
+__pycache__/
+*.pyc
+
