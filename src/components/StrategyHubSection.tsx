@@ -18,6 +18,7 @@ import {
   calculateIronButterflyStrategy,
   calculateBullPutCreditSpread,
   calculateBearCallCreditSpread,
+  calculateShortStrangleStrategy,
   calculateBullCallSpread,
   calculateBearPutSpread,
   getDefaultLotSizeForSymbol,
@@ -31,7 +32,7 @@ interface StrategyHubSectionProps {
   supportResistance?: any;
   maxPainStrike?: number;
   expectedMoveBounds?: { upper: number; lower: number };
-  initialTab?: 'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BEAR_CALL_CREDIT' | 'BULL_CALL' | 'BEAR_PUT' | 'ALL';
+  initialTab?: 'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BEAR_CALL_CREDIT' | 'SHORT_STRANGLE' | 'BULL_CALL' | 'BEAR_PUT' | 'ALL';
   onBackToDashboard?: () => void;
 }
 
@@ -45,7 +46,7 @@ export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
   initialTab = 'IRON_CONDOR',
   onBackToDashboard
 }) => {
-  const [activeTab, setActiveTab] = useState<'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BEAR_CALL_CREDIT' | 'BULL_CALL' | 'BEAR_PUT'>(
+  const [activeTab, setActiveTab] = useState<'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BEAR_CALL_CREDIT' | 'SHORT_STRANGLE' | 'BULL_CALL' | 'BEAR_PUT'>(
     initialTab === 'ALL' || initialTab === 'IRON_CONDOR' ? 'IRON_CONDOR' : initialTab
   );
   const [lotSize, setLotSize] = useState<number>(getDefaultLotSizeForSymbol(selectedSymbol));
@@ -128,6 +129,14 @@ export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
       selectedSymbol,
       lotSize,
       wingWidth,
+      supportResistance
+    );
+  } else if (activeTab === 'SHORT_STRANGLE') {
+    result = calculateShortStrangleStrategy(
+      optionChain,
+      currentSpot,
+      selectedSymbol,
+      lotSize,
       supportResistance
     );
   } else if (activeTab === 'BULL_CALL') {
@@ -265,6 +274,26 @@ export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
           }}
         >
           <TrendingDown size={16} /> 📉 Bear Call Credit Spread (Resistance Credit)
+        </button>
+
+        <button
+          onClick={() => setActiveTab('SHORT_STRANGLE')}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '10px 18px',
+            borderRadius: '8px',
+            fontSize: '0.88rem',
+            fontWeight: 700,
+            cursor: 'pointer',
+            backgroundColor: activeTab === 'SHORT_STRANGLE' ? '#8E44AD' : 'var(--bg-main)',
+            color: activeTab === 'SHORT_STRANGLE' ? '#FFF' : 'var(--text-main)',
+            border: `1.5px solid ${activeTab === 'SHORT_STRANGLE' ? '#8E44AD' : 'var(--border-color)'}`,
+            transition: 'all 0.15s ease'
+          }}
+        >
+          <Activity size={16} /> ⚡ Short Strangle (Volatility Crush)
         </button>
 
         <button

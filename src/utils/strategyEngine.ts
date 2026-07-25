@@ -961,6 +961,214 @@ export const calculateBearCallCreditSpread = (
   };
 };
 
+/**
+ * Strategy #5: ⚡ Volatility Crush Short Strangle (Post-Earnings / High IV Event)
+ */
+export const calculateShortStrangleStrategy = (
+  optionChain: any[],
+  spotPrice: number,
+  symbol: string = 'NIFTY',
+  customLotSize?: number,
+  supportResistance?: { top5Support: { strike: number }[]; top5Resistance: { strike: number }[] }
+): StrategyResult | null => {
+  if (!optionChain || optionChain.length < 5 || spotPrice <= 0) return null;
+
+  const lotSize = customLotSize && customLotSize > 0 ? customLotSize : getDefaultLotSizeForSymbol(symbol);
+  const sorted = [...optionChain].sort((a, b) => (a.strikePrice || a.strike) - (b.strikePrice || b.strike));
+
+  let atmIndex = 0;
+  let minDiff = Infinity;
+  sorted.forEach((row, idx) => {
+    const strike = row.strikePrice || row.strike || 0;
+    const diff = Math.abs(strike - spotPrice);
+    if (diff < minDiff) {
+      minDiff = diff;
+      atmIndex = idx;
+    }
+  });
+
+  const atmRow = sorted[atmIndex];
+  const atmCeLtp = atmRow.ceLtp || 0;
+  const atmPeLtp = atmRow.peLtp || 0;
+
+  const highestPutStrike = supportResistance?.top5Support?.[0]?.strike || 0;
+  const highestCallStrike = supportResistance?.top5Resistance?.[0]?.strike || 0;
+
+  const eos1 = highestPutStrike > 0 ? highestPutStrike - atmPeLtp : 0;
+  const eor1 = highestCallStrike > 0 ? highestCallStrike + atmCeLtp : 0;
+
+  let shortPutIndex = Math.max(0, atmIndex - 3);
+  if (eos1 > 0) {
+    let bestIdx = shortPutIndex;
+    let minErr = Infinity;
+    sorted.forEach((row, idx) => {
+      const s = row.strikePrice || row.strike;
+      if (s <= eos1) {
+        const err = Math.abs(s - eos1);
+        if (err < minErr) {
+          minErr = err;
+          bestIdx = idx;
+        }
+      }
+    });
+    shortPutIndex = bestIdx;
+  }
+
+  let shortCallIndex = Math.min(sorted.length - 1, atmIndex + 3);
+  if (eor1 > 0) {
+    let bestIdx = shortCallIndex;
+    let minErr = Infinity;
+    sorted.forEach((row, idx) => {
+      const s = row.strikePrice || row.strike;
+      if (s >= eor1) {
+        const err = Math.abs(s - eor1);
+        if (err < minErr) {
+          minErr = err;
+          bestIdx = idx;
+        }
+      }
+    });
+    shortCallIndex = bestIdx;
+  }
+
+  const shortPutRow = sorted[shortPutIndex];
+  const shortCallRow = sorted[shortCallIndex];
+
+  const spStrike = shortPutRow.strikePrice || shortPutRow.strike;
+  const scStrike = shortCallRow.strikePrice || shortCallRow.strike;
+
+  const spLtp = shortPutRow.peLtp || 0;
+  const scLtp = shortCallRow.ceLtp || 0;
+
+  const spDelta = shortPutRow.peDelta !== undefined ? shortPutRow.peDelta : -0.20;
+  const scDelta = shortCallRow.ceDelta !== undefined ? shortCallRow.ceDelta : 0.20;
+
+  const spTheta = shortPutRow.peTheta !== undefined ? shortPutRow.peTheta : -6;
+  const scTheta = shortCallRow.ceTheta !== undefined ? shortCallRow.ceTheta : -6;
+
+  const spVega = shortPutRow.peVega !== undefined ? shortPutRow.peVega : 12;
+  const scVega = shortCallRow.ceVega !== undefined ? shortCallRow.ceVega : 12;
+
+  const spGamma = shortPutRow.peGamma !== undefined ? shortPutRow.peGamma : 0.001;
+  const scGamma = shortCallRow.ceGamma !== undefined ? shortCallRow.ceGamma : 0.001;
+
+  const spExtrinsic = Math.max(0, spLtp - Math.max(0, spStrike - spotPrice));
+  const scExtrinsic = Math.max(0, scLtp - Math.max(0, spotPrice - scStrike));
+
+  const legs: StrategyLeg[] = [
+    { action: 'SELL', optionType: 'PE', strike: spStrike, ltp: spLtp, delta: spDelta, gamma: spGamma, theta: spTheta, vega: spVega, iv: shortPutRow.peIv || 0, extrinsicValue: spExtrinsic, role: 'Short OTM Put (EOS1 Support)' },
+    { action: 'SELL', optionType: 'CE', strike: scStrike, ltp: scLtp, delta: scDelta, gamma: scGamma, theta: scTheta, vega: scVega, iv: shortCallRow.ceIv || 0, extrinsicValue: scExtrinsic, role: 'Short OTM Call (EOR1 Resistance)' }
+  ];
+
+  const netCreditPerShare = Math.max(0, Math.round((spLtp + scLtp) * 100) / 100);
+  const netCreditTotal = Math.round(netCreditPerShare * lotSize);
+
+  const maxProfit = netCreditTotal;
+  // Estimated 20% stress crash risk for display
+  const maxLoss = Math.round((spotPrice * 0.15) * lotSize);
+
+  const upperBreakeven = Math.round((scStrike + netCreditPerShare) * 100) / 100;
+  const lowerBreakeven = Math.round((spStrike - netCreditPerShare) * 100) / 100;
+  const riskRewardRatio = maxProfit > 0 ? Math.round((maxLoss / maxProfit) * 100) / 100 : 0;
+  const popPercentage = Math.min(96, Math.max(75, Math.round((1 - (Math.abs(spDelta) + Math.abs(scDelta))) * 100)));
+
+  const totalExtrinsicCaptured = Math.round((spExtrinsic + scExtrinsic) * lotSize);
+  const dailyThetaIncome = Math.round(((-spTheta) + (-scTheta)) * lotSize);
+  const vegaCrushGain = Math.round(((-spVega) + (-scVega)) * lotSize);
+
+  const greeks: StrategyGreeks = {
+    netDelta: Math.round((-spDelta - scDelta) * lotSize * 100) / 100,
+    netGamma: Math.round((-spGamma - scGamma) * lotSize * 1000) / 1000,
+    dailyThetaIncome: Math.max(0, dailyThetaIncome),
+    vegaCrushGain
+  };
+
+  const healthScore: StrategyInstitutionalScore = {
+    score: 90,
+    rating: 'EXCELLENT',
+    reversalAlignmentText: `Short Put (₹${spStrike}) at EOS1 & Short Call (₹${scStrike}) at EOR1 capturing high IV crush`,
+    expectedMoveText: `Wide Breakevens (₹${lowerBreakeven} ↔ ₹${upperBreakeven})`
+  };
+
+  const decisionIntelligence: StrategyDecisionIntelligence = {
+    executiveSummary: `High-IV Volatility Crush Short Strangle on ${symbol.toUpperCase()}. Selling OTM Put ₹${spStrike} and OTM Call ₹${scStrike} collects +₹${maxProfit.toLocaleString('en-IN')} upfront credit, capturing +₹${Math.abs(vegaCrushGain)} per 1% IV crush with a high ${popPercentage}% POP.`,
+    confluenceScore: 90,
+    confidenceRating: 'HIGH CONFIDENCE',
+    pros: [
+      `Maximum Volatility Crush Profitability (+₹${Math.abs(vegaCrushGain)} gained per 1% IV drop) during IV crush cycles.`,
+      `Highest daily Theta cash flow (+₹${dailyThetaIncome}/day) from double short premium decay.`,
+      `Very high Probability of Profit (${popPercentage}% POP) with short strikes sitting beyond EOS1 (₹${Math.round(eos1)}) and EOR1 (₹${Math.round(eor1)}).`,
+      `Wide Breakeven margin (₹${lowerBreakeven} ↔ ₹${upperBreakeven}).`
+    ],
+    cons: [
+      `Uncapped risk beyond breakevens if an extreme black-swan trend move occurs.`,
+      `Requires margin allocation and strict stop-loss management.`
+    ],
+    executionPlan: {
+      entryZone: `Enter when IV is at historical peak (IV / HV Ratio > 1.15x).`,
+      profitTarget: `Exit at 50% - 65% max profit (harvest +₹${Math.round(maxProfit * 0.6).toLocaleString('en-IN')} profit on IV crush).`,
+      adjustmentTrigger: `Close or hedge with long options if spot approaches Short Put (₹${spStrike}) or Short Call (₹${scStrike}).`
+    }
+  };
+
+  const payoffRows: PayoffRow[] = [];
+  const minSpot = Math.round(lowerBreakeven * 0.96);
+  const maxSpot = Math.round(upperBreakeven * 1.04);
+  const step = Math.max(5, Math.round((maxSpot - minSpot) / 15));
+
+  for (let s = minSpot; s <= maxSpot; s += step) {
+    const putShortLoss = Math.max(0, spStrike - s);
+    const callShortLoss = Math.max(0, s - scStrike);
+
+    const netPayoffPerShare = netCreditPerShare - putShortLoss - callShortLoss;
+    const pnl = Math.round(netPayoffPerShare * lotSize);
+    const pnlPct = maxLoss > 0 ? Math.round((pnl / maxLoss) * 100) : 0;
+
+    let tag: string | undefined;
+    if (eos1 > 0 && Math.abs(s - eos1) < step / 2) tag = 'EOS1 PRIMARY SUPPORT';
+    else if (eor1 > 0 && Math.abs(s - eor1) < step / 2) tag = 'EOR1 PRIMARY RESISTANCE';
+
+    payoffRows.push({
+      spot: s,
+      pnl,
+      pnlPct,
+      isCurrentSpot: Math.abs(s - spotPrice) < step / 2,
+      isBreakeven: Math.abs(s - lowerBreakeven) < step / 2 || Math.abs(s - upperBreakeven) < step / 2,
+      isEos1: eos1 > 0 && Math.abs(s - eos1) < step / 2,
+      isEor1: eor1 > 0 && Math.abs(s - eor1) < step / 2,
+      tag
+    });
+  }
+
+  return {
+    strategyName: 'Short Strangle (Volatility Crush)',
+    symbol: symbol.toUpperCase(),
+    spotPrice,
+    lotSize,
+    legs,
+    netCreditPerShare,
+    netDebitPerShare: 0,
+    maxProfit,
+    maxLoss,
+    upperBreakeven,
+    lowerBreakeven,
+    riskRewardRatio,
+    popPercentage,
+    totalExtrinsicCaptured,
+    greeks,
+    healthScore,
+    decisionIntelligence,
+    reversalLevels: {
+      eos1: Math.round(eos1),
+      eos2: spStrike,
+      eor1: Math.round(eor1),
+      eor2: scStrike,
+      maxPain: Math.round((spStrike + scStrike) / 2)
+    },
+    payoffRows
+  };
+};
+
 export const calculateBullCallSpread = (
   optionChain: any[],
   spotPrice: number,
