@@ -53,31 +53,30 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
   });
 
   const toggleCategory = (title: string) => {
-    if (title === 'OVERVIEW') {
-      if (onSelectView) {
-        onSelectView('DASHBOARD');
-      } else {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      }
+    const isCurrentlyOpen = !!openCategories[title];
+    if (isCurrentlyOpen) {
+      setOpenCategories({
+        'OVERVIEW': false,
+        'DERIVATIVES': false,
+        'QUANT TOOLS': false,
+        'QUANT STRATEGIES': false
+      });
+      return;
     }
 
-    setOpenCategories(prev => {
-      const isCurrentlyOpen = !!prev[title];
-      if (isCurrentlyOpen) {
-        return {
-          'OVERVIEW': false,
-          'DERIVATIVES': false,
-          'QUANT TOOLS': false,
-          'QUANT STRATEGIES': false
-        };
-      }
-      return {
+    const cat = navCategories.find(c => c.title === title);
+    const firstItem = cat?.items[0];
+
+    if (firstItem) {
+      handleItemClick(firstItem, title);
+    } else {
+      setOpenCategories({
         'OVERVIEW': title === 'OVERVIEW',
         'DERIVATIVES': title === 'DERIVATIVES',
         'QUANT TOOLS': title === 'QUANT TOOLS',
         'QUANT STRATEGIES': title === 'QUANT STRATEGIES'
-      };
-    });
+      });
+    }
   };
 
   const navCategories: { title: string; categoryIcon: any; items: NavSection[] }[] = [
