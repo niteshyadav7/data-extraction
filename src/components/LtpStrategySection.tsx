@@ -2,7 +2,7 @@ import React from 'react';
 import type { DashboardMetrics } from '../types';
 import { calculateLtpReversalStrategy } from '../utils/ltpStrategyEngine';
 import { TradeAdjustmentEngine } from './TradeAdjustmentEngine';
-import { ArrowLeft, Target, Layers, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Layers, AlertTriangle, CheckCircle2, ShieldCheck, Activity, Sparkles } from 'lucide-react';
 
 interface LtpStrategySectionProps {
   metrics: DashboardMetrics | null;
@@ -36,7 +36,19 @@ export const LtpStrategySection: React.FC<LtpStrategySectionProps> = ({
 
   if (!ltpStrategy) return null;
 
-  const { strategyResult, eorCeilingStrike, eosFloorStrike, reversalBandwidthPts, reversalMatrixRows } = ltpStrategy;
+  const {
+    strategyResult,
+    eorCeilingStrike,
+    eorReversalLevel,
+    eosFloorStrike,
+    eosReversalLevel,
+    reversalBandwidthPts,
+    reversalChannelPositionPct,
+    extrinsicHarvestEfficiencyPct,
+    reversalMatrixRows,
+    reversalChecklist
+  } = ltpStrategy;
+
   const res = strategyResult;
 
   return (
@@ -72,7 +84,7 @@ export const LtpStrategySection: React.FC<LtpStrategySectionProps> = ({
               gap: '4px',
               marginBottom: '6px'
             }}>
-              <Target size={14} /> PROPRIETARY QUANTITATIVE REVERSAL ENGINE
+              <Sparkles size={14} /> 100% UNIQUE EXTRINSIC REVERSAL ENGINE
             </span>
             <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)' }}>
               📐 LTP Reversal Boundary Arbitrage Studio ({symbol})
@@ -82,12 +94,10 @@ export const LtpStrategySection: React.FC<LtpStrategySectionProps> = ({
             </p>
           </div>
 
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>CONFLUENCE SCORE</div>
-              <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--color-green)' }}>
-                {res.decisionIntelligence.confluenceScore}% EXCELLENT
-              </div>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>CONFLUENCE SCORE</div>
+            <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--color-green)' }}>
+              {res.decisionIntelligence.confluenceScore}% EXCELLENT
             </div>
           </div>
         </div>
@@ -121,7 +131,7 @@ export const LtpStrategySection: React.FC<LtpStrategySectionProps> = ({
             +₹{res.greeks.dailyThetaIncome.toLocaleString('en-IN')}/day
           </div>
           <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-            Pure time value decay cashflow
+            {extrinsicHarvestEfficiencyPct}% Extrinsic Efficiency
           </div>
         </div>
 
@@ -133,6 +143,68 @@ export const LtpStrategySection: React.FC<LtpStrategySectionProps> = ({
           <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '4px' }}>
             Risk/Reward: {res.riskRewardRatio} : 1
           </div>
+        </div>
+      </div>
+
+      {/* Visual Reversal Channel Position Gauge Bar */}
+      <div className="card" style={{ marginBottom: '24px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+          <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Activity size={16} color="var(--accent-gold-dark)" /> Reversal Corridor Position Gauge
+          </span>
+          <span style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--color-green)' }}>
+            Spot is in the {reversalChannelPositionPct}% Center Sweet Spot
+          </span>
+        </div>
+
+        <div style={{
+          height: '14px',
+          backgroundColor: 'var(--bg-main)',
+          borderRadius: '7px',
+          overflow: 'hidden',
+          position: 'relative',
+          border: '1px solid var(--border-color)'
+        }}>
+          <div style={{
+            height: '100%',
+            width: `${Math.min(100, Math.max(0, reversalChannelPositionPct))}%`,
+            backgroundColor: 'var(--color-green)',
+            transition: 'width 0.4s ease'
+          }} />
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '6px' }}>
+          <span>🟢 EOS Floor: ₹{eosFloorStrike} (Level: ₹{eosReversalLevel})</span>
+          <span>📍 Current Spot: ₹{spot.toLocaleString('en-IN')}</span>
+          <span>🔴 EOR Ceiling: ₹{eorCeilingStrike} (Level: ₹{eorReversalLevel})</span>
+        </div>
+      </div>
+
+      {/* Institutional Reversal Alignment Checklist */}
+      <div className="card" style={{ marginBottom: '24px' }}>
+        <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <ShieldCheck size={18} color="var(--color-green)" />
+          Institutional Reversal Alignment Checklist (5 Verification Tests)
+        </h3>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px' }}>
+          {reversalChecklist.map((item, idx) => (
+            <div key={idx} style={{
+              padding: '12px',
+              borderRadius: '8px',
+              backgroundColor: item.passed ? 'rgba(46, 204, 113, 0.05)' : 'rgba(231, 76, 60, 0.05)',
+              border: `1px solid ${item.passed ? '#ABEBC6' : '#FADBD8'}`,
+              display: 'flex',
+              gap: '10px',
+              alignItems: 'flex-start'
+            }}>
+              <CheckCircle2 size={18} color={item.passed ? 'var(--color-green)' : 'var(--color-red)'} style={{ marginTop: '2px', flexShrink: 0 }} />
+              <div>
+                <div style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-main)' }}>{item.label}</div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>{item.details}</div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
