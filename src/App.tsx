@@ -34,6 +34,8 @@ import { calculateDashboardMetrics } from './utils/calculations';
 import { fetchYahooFinanceOHLCV, getYahooTickerForSymbol } from './utils/yahooFinance';
 import { loadStocksList } from './utils/stocksParser';
 
+import { attachGlobalWindowJson } from './utils/exportJson';
+
 export function App() {
   const [riskFreeRate, setRiskFreeRate] = useState<number>(5.25);
   const [isLiveSync, setIsLiveSync] = useState<boolean>(false);
@@ -50,6 +52,13 @@ export function App() {
   });
 
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
+
+  // Expose global window.__QUANT_MARKET_JSON__ state
+  useEffect(() => {
+    if (metrics) {
+      attachGlobalWindowJson(metrics, selectedSymbol);
+    }
+  }, [metrics, selectedSymbol]);
   const timerRef = useRef<number | null>(null);
 
   // Initial load for selected symbol

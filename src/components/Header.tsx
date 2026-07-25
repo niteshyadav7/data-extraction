@@ -4,6 +4,7 @@ import type { DashboardMetrics } from '../types';
 import { SymbolSearch } from './SymbolSearch';
 import { exportAnalysisToExcel } from '../utils/exportExcel';
 import { exportAnalysisToCsv } from '../utils/exportCsv';
+import { exportAnalysisToJson } from '../utils/exportJson';
 
 interface HeaderProps {
   metrics: DashboardMetrics | null;
@@ -65,6 +66,16 @@ export const Header: React.FC<HeaderProps> = ({
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
         {metrics && (
           <>
+            <button
+              onClick={() => exportAnalysisToJson(metrics, selectedSymbol)}
+              className="btn-secondary"
+              title="Export complete 100% dashboard analytics as unified JSON payload"
+              style={{ backgroundColor: '#FEF9E7', borderColor: '#F9E79F', color: '#B7950B' }}
+            >
+              <FileSpreadsheet size={16} color="#B7950B" />
+              Export analysis.json
+            </button>
+
             <button
               onClick={() => exportAnalysisToCsv(metrics)}
               className="btn-secondary"
