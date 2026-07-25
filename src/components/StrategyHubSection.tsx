@@ -20,6 +20,7 @@ import {
   calculateBearCallCreditSpread,
   calculateShortStrangleStrategy,
   calculateRatioPutSpreadStrategy,
+  calculateCalendarSpreadStrategy,
   calculateBullCallSpread,
   calculateBearPutSpread,
   getDefaultLotSizeForSymbol,
@@ -33,7 +34,7 @@ interface StrategyHubSectionProps {
   supportResistance?: any;
   maxPainStrike?: number;
   expectedMoveBounds?: { upper: number; lower: number };
-  initialTab?: 'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BEAR_CALL_CREDIT' | 'SHORT_STRANGLE' | 'RATIO_PUT_SPREAD' | 'BULL_CALL' | 'BEAR_PUT' | 'ALL';
+  initialTab?: 'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BEAR_CALL_CREDIT' | 'SHORT_STRANGLE' | 'RATIO_PUT_SPREAD' | 'CALENDAR_SPREAD' | 'BULL_CALL' | 'BEAR_PUT' | 'ALL';
   onBackToDashboard?: () => void;
 }
 
@@ -47,7 +48,7 @@ export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
   initialTab = 'IRON_CONDOR',
   onBackToDashboard
 }) => {
-  const [activeTab, setActiveTab] = useState<'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BEAR_CALL_CREDIT' | 'SHORT_STRANGLE' | 'RATIO_PUT_SPREAD' | 'BULL_CALL' | 'BEAR_PUT'>(
+  const [activeTab, setActiveTab] = useState<'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BEAR_CALL_CREDIT' | 'SHORT_STRANGLE' | 'RATIO_PUT_SPREAD' | 'CALENDAR_SPREAD' | 'BULL_CALL' | 'BEAR_PUT'>(
     initialTab === 'ALL' || initialTab === 'IRON_CONDOR' ? 'IRON_CONDOR' : initialTab
   );
   const [lotSize, setLotSize] = useState<number>(getDefaultLotSizeForSymbol(selectedSymbol));
@@ -147,6 +148,13 @@ export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
       selectedSymbol,
       lotSize,
       supportResistance
+    );
+  } else if (activeTab === 'CALENDAR_SPREAD') {
+    result = calculateCalendarSpreadStrategy(
+      optionChain,
+      currentSpot,
+      selectedSymbol,
+      lotSize
     );
   } else if (activeTab === 'BULL_CALL') {
     result = calculateBullCallSpread(optionChain, currentSpot, selectedSymbol, lotSize);
@@ -323,6 +331,26 @@ export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
           }}
         >
           <Target size={16} /> 🎯 Ratio Put Spread (Zero-Cost Crash Hedge)
+        </button>
+
+        <button
+          onClick={() => setActiveTab('CALENDAR_SPREAD')}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '10px 18px',
+            borderRadius: '8px',
+            fontSize: '0.88rem',
+            fontWeight: 700,
+            cursor: 'pointer',
+            backgroundColor: activeTab === 'CALENDAR_SPREAD' ? '#16A085' : 'var(--bg-main)',
+            color: activeTab === 'CALENDAR_SPREAD' ? '#FFF' : 'var(--text-main)',
+            border: `1.5px solid ${activeTab === 'CALENDAR_SPREAD' ? '#16A085' : 'var(--border-color)'}`,
+            transition: 'all 0.15s ease'
+          }}
+        >
+          <BarChart3 size={16} /> 📅 Calendar Time Spread (Term Structure Arbitrage)
         </button>
 
         <button

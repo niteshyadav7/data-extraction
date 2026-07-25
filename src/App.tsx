@@ -394,9 +394,9 @@ export function App() {
     setMetrics(null);
   };
 
-  const [currentView, setCurrentView] = useState<'DASHBOARD' | 'STRATEGY_HUB' | 'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BEAR_CALL_CREDIT' | 'SHORT_STRANGLE' | 'RATIO_PUT_SPREAD'>('DASHBOARD');
+  const [currentView, setCurrentView] = useState<'DASHBOARD' | 'STRATEGY_HUB' | 'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BEAR_CALL_CREDIT' | 'SHORT_STRANGLE' | 'RATIO_PUT_SPREAD' | 'CALENDAR_SPREAD'>('DASHBOARD');
 
-  const handleSelectView = (view: 'DASHBOARD' | 'STRATEGY_HUB' | 'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BEAR_CALL_CREDIT' | 'SHORT_STRANGLE' | 'RATIO_PUT_SPREAD', sectionId?: string) => {
+  const handleSelectView = (view: 'DASHBOARD' | 'STRATEGY_HUB' | 'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BEAR_CALL_CREDIT' | 'SHORT_STRANGLE' | 'RATIO_PUT_SPREAD' | 'CALENDAR_SPREAD', sectionId?: string) => {
     setCurrentView(view);
     if (view === 'DASHBOARD' && sectionId) {
       setTimeout(() => {
@@ -510,6 +510,17 @@ export function App() {
               maxPainStrike={metrics?.maxPain.maxPainStrike}
               expectedMoveBounds={metrics ? { upper: metrics.expectedMove.upperBound, lower: metrics.expectedMove.lowerBound } : undefined}
               initialTab="RATIO_PUT_SPREAD"
+              onBackToDashboard={() => setCurrentView('DASHBOARD')}
+            />
+          ) : currentView === 'CALENDAR_SPREAD' ? (
+            <StrategyHubSection
+              optionChain={metrics?.completeChain || []}
+              currentSpot={metrics?.marketSummary.spotPrice || 0}
+              selectedSymbol={selectedSymbol}
+              supportResistance={metrics?.supportResistance}
+              maxPainStrike={metrics?.maxPain.maxPainStrike}
+              expectedMoveBounds={metrics ? { upper: metrics.expectedMove.upperBound, lower: metrics.expectedMove.lowerBound } : undefined}
+              initialTab="CALENDAR_SPREAD"
               onBackToDashboard={() => setCurrentView('DASHBOARD')}
             />
           ) : currentView === 'STRATEGY_HUB' ? (
