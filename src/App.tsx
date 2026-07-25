@@ -500,6 +500,7 @@ export function App() {
                 <StrategyHubSection
                   optionChain={metrics.completeChain}
                   currentSpot={metrics.marketSummary.spotPrice}
+                  selectedSymbol={selectedSymbol}
                 />
               </div>
 

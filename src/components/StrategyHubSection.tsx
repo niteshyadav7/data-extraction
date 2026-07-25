@@ -1,22 +1,43 @@
-import React, { useState } from 'react';
-import { Layers, TrendingUp, TrendingDown, Target, Award } from 'lucide-react';
-import { calculateIronCondorStrategy } from '../utils/strategyEngine';
+import React, { useState, useEffect } from 'react';
+import { Layers, TrendingUp, TrendingDown, Target, Award, AlertCircle } from 'lucide-react';
+import { calculateIronCondorStrategy, getDefaultLotSizeForSymbol } from '../utils/strategyEngine';
 
 interface StrategyHubSectionProps {
   optionChain: any[];
   currentSpot: number;
+  selectedSymbol?: string;
 }
 
 export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
   optionChain,
-  currentSpot
+  currentSpot,
+  selectedSymbol = 'NIFTY'
 }) => {
-  const [lotSize, setLotSize] = useState<number>(25);
+  const [lotSize, setLotSize] = useState<number>(getDefaultLotSizeForSymbol(selectedSymbol));
   const [wingWidth, setWingWidth] = useState<number>(2);
 
-  if (!optionChain || optionChain.length === 0) return null;
+  // Sync lot size when selectedSymbol changes
+  useEffect(() => {
+    setLotSize(getDefaultLotSizeForSymbol(selectedSymbol));
+  }, [selectedSymbol]);
 
-  const result = calculateIronCondorStrategy(optionChain, currentSpot, lotSize, wingWidth);
+  if (!optionChain || optionChain.length < 5 || currentSpot <= 0) {
+    return (
+      <div className="card" style={{ marginBottom: '24px', width: '100%', padding: '24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--color-red)' }}>
+          <AlertCircle size={24} />
+          <div>
+            <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>No Active Market Data for {selectedSymbol.toUpperCase()}</h3>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+              Connect live auto-sync feed or upload 3 NSE CSV files to calculate real-time quantitative option strategies.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const result = calculateIronCondorStrategy(optionChain, currentSpot, selectedSymbol, lotSize, wingWidth);
 
   if (!result) return null;
 
@@ -28,16 +49,16 @@ export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
           <div>
             <h2 style={{ fontSize: '1.2rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '10px' }}>
               <Layers size={22} color="var(--accent-gold)" />
-              Step 19: Quantitative Strategy Hub & Payoff Simulator
+              Step 19: Quantitative Strategy Hub & Payoff Simulator ({selectedSymbol.toUpperCase()})
             </h2>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-              100% dynamic strategy recommendations based on live market chain, IV skew, and reversal levels.
+              100% dynamic strategy recommendations calculated from active live market chain for <strong>{selectedSymbol.toUpperCase()}</strong>.
             </p>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <span style={{ fontSize: '0.8rem', fontWeight: 700, padding: '4px 10px', borderRadius: '6px', backgroundColor: '#E2F0E5', color: 'var(--color-green)', border: '1px solid var(--color-green)' }}>
-              🟢 STRATEGY: IRON CONDOR (NEUTRAL INCOME)
+              🟢 STRATEGY: IRON CONDOR ({selectedSymbol.toUpperCase()})
             </span>
           </div>
         </div>
@@ -59,27 +80,22 @@ export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
         {/* Lot Size Selector */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)' }}>
-            Contract Lot Size:
+            {selectedSymbol.toUpperCase()} Contract Lot Size:
           </span>
-          <select
+          <input
+            type="number"
             value={lotSize}
-            onChange={(e) => setLotSize(parseInt(e.target.value) || 25)}
+            onChange={(e) => setLotSize(parseInt(e.target.value) || 1)}
             style={{
-              padding: '6px 12px',
+              width: '90px',
+              padding: '6px 10px',
               borderRadius: '6px',
               border: '1.5px solid var(--border-color)',
               backgroundColor: '#FFF',
               fontSize: '0.85rem',
-              fontWeight: 700,
-              cursor: 'pointer'
+              fontWeight: 700
             }}
-          >
-            <option value={25}>25 (Nifty 1 Lot)</option>
-            <option value={50}>50 (Nifty 2 Lots)</option>
-            <option value={100}>100 (Nifty 4 Lots)</option>
-            <option value={15}>15 (BankNifty 1 Lot)</option>
-            <option value={500}>500 (Stock Lot)</option>
-          </select>
+          />
         </div>
 
         {/* Wing Protection Width */}
@@ -106,8 +122,8 @@ export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
           </select>
         </div>
 
-        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-          Spot Price: <strong>₹{currentSpot.toLocaleString('en-IN')}</strong>
+        <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+          {selectedSymbol.toUpperCase()} Spot: <strong>₹{currentSpot.toLocaleString('en-IN')}</strong>
         </div>
       </div>
 
@@ -174,7 +190,7 @@ export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
       {/* Dynamic 4-Leg Order Matrix */}
       <div style={{ marginBottom: '24px' }}>
         <h3 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '10px', color: 'var(--text-main)' }}>
-          📋 Dynamic 4-Leg Order Execution Matrix
+          📋 Dynamic 4-Leg Order Execution Matrix ({selectedSymbol.toUpperCase()})
         </h3>
         <div className="table-container" style={{ width: '100%', overflowX: 'auto', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
           <table style={{ width: '100%', tableLayout: 'auto' }}>
@@ -183,7 +199,7 @@ export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
                 <th>Leg #</th>
                 <th>Role</th>
                 <th>Action</th>
-                <th>Option Type</th>
+                <th>Option Contract</th>
                 <th>Strike Price</th>
                 <th>LTP (Premium)</th>
                 <th>Delta (Δ)</th>
@@ -213,12 +229,12 @@ export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
                       </span>
                     </td>
                     <td style={{ fontWeight: 700, color: leg.optionType === 'CE' ? 'var(--color-green)' : 'var(--color-red)' }}>
-                      {leg.strike} {leg.optionType}
+                      {selectedSymbol.toUpperCase()} {leg.strike} {leg.optionType}
                     </td>
                     <td style={{ fontWeight: 800, fontSize: '0.95rem' }}>{leg.strike}</td>
                     <td style={{ fontWeight: 700 }}>₹{leg.ltp.toFixed(2)}</td>
                     <td style={{ color: 'var(--color-blue)', fontWeight: 600 }}>{leg.delta.toFixed(2)}</td>
-                    <td>{leg.iv.toFixed(1)}%</td>
+                    <td>{leg.iv > 0 ? `${leg.iv.toFixed(1)}%` : '-'}</td>
                     <td style={{ fontWeight: 700, color: isSell ? 'var(--color-green)' : 'var(--color-red)' }}>
                       {isSell ? `+₹${totalValue.toLocaleString('en-IN')}` : `-₹${totalValue.toLocaleString('en-IN')}`}
                     </td>
@@ -233,7 +249,7 @@ export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
       {/* Payoff at Expiry Table Matrix */}
       <div>
         <h3 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '10px', color: 'var(--text-main)' }}>
-          📈 Strategy Expiry Payoff Matrix (PnL Across Spot Levels)
+          📈 Strategy Expiry Payoff Matrix (PnL Across {selectedSymbol.toUpperCase()} Spot Levels)
         </h3>
         <div className="table-container" style={{ width: '100%', overflowX: 'auto', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
           <table style={{ width: '100%', tableLayout: 'auto' }}>
@@ -264,7 +280,7 @@ export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
                   >
                     <td style={{ fontWeight: 800, fontSize: row.isCurrentSpot ? '0.95rem' : '0.85rem' }}>
                       ₹{row.spot.toLocaleString('en-IN')}
-                      {row.isCurrentSpot && <span style={{ fontSize: '0.65rem', display: 'block', color: 'var(--accent-gold-dark)' }}>CURRENT SPOT</span>}
+                      {row.isCurrentSpot && <span style={{ fontSize: '0.65rem', display: 'block', color: 'var(--accent-gold-dark)' }}>CURRENT {selectedSymbol.toUpperCase()} SPOT</span>}
                       {row.isBreakeven && <span style={{ fontSize: '0.65rem', display: 'block', color: '#B7950B' }}>BREAKEVEN LEVEL</span>}
                     </td>
 

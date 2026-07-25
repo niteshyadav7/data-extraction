@@ -35,15 +35,41 @@ export interface IronCondorStrategyResult {
 }
 
 /**
- * Dynamically constructs an Iron Condor Strategy using real market chain data
+ * Returns market-standard default lot size for a given symbol
+ */
+export const getDefaultLotSizeForSymbol = (symbol: string): number => {
+  const sym = symbol.toUpperCase();
+  if (sym === 'NIFTY') return 25;
+  if (sym === 'BANKNIFTY') return 15;
+  if (sym === 'FINNIFTY') return 25;
+  if (sym === 'MIDCPNIFTY') return 50;
+
+  // Common Stock F&O Lot Sizes
+  if (sym === 'RELIANCE') return 250;
+  if (sym === 'INFY') return 400;
+  if (sym === 'TCS') return 175;
+  if (sym === 'HDFCBANK') return 550;
+  if (sym === 'ICICIBANK') return 700;
+  if (sym === 'SBIN') return 750;
+  if (sym === 'BHARTIARTL') return 475;
+  if (sym === 'TATAMOTORS') return 550;
+
+  return 25;
+};
+
+/**
+ * Dynamically constructs an Iron Condor Strategy using real active market chain data
  */
 export const calculateIronCondorStrategy = (
   optionChain: any[],
   spotPrice: number,
-  lotSize: number = 25,
+  symbol: string = 'NIFTY',
+  customLotSize?: number,
   wingWidthStrikes: number = 2 // Number of strikes for protective wings
 ): IronCondorStrategyResult | null => {
   if (!optionChain || optionChain.length < 5 || spotPrice <= 0) return null;
+
+  const lotSize = customLotSize && customLotSize > 0 ? customLotSize : getDefaultLotSizeForSymbol(symbol);
 
   // Sort chain by strike price
   const sorted = [...optionChain].sort((a, b) => (a.strikePrice || a.strike) - (b.strikePrice || b.strike));
@@ -60,11 +86,11 @@ export const calculateIronCondorStrategy = (
     }
   });
 
-  // Short Put Strike: ~2-4 strikes below ATM (or Delta ~ 0.20-0.30)
+  // Short Put Strike: ~2-4 strikes below ATM
   const shortPutIndex = Math.max(0, atmIndex - 3);
   const longPutIndex = Math.max(0, shortPutIndex - wingWidthStrikes);
 
-  // Short Call Strike: ~2-4 strikes above ATM (or Delta ~ 0.20-0.30)
+  // Short Call Strike: ~2-4 strikes above ATM
   const shortCallIndex = Math.min(sorted.length - 1, atmIndex + 3);
   const longCallIndex = Math.min(sorted.length - 1, shortCallIndex + wingWidthStrikes);
 
@@ -89,10 +115,10 @@ export const calculateIronCondorStrategy = (
   const lcDelta = longCallRow.ceDelta !== undefined ? longCallRow.ceDelta : 0.10;
 
   const legs: IronCondorLeg[] = [
-    { action: 'BUY', optionType: 'PE', strike: lpStrike, ltp: lpLtp, delta: lpDelta, iv: longPutRow.peIv || 15, role: 'Long Put Wing' },
-    { action: 'SELL', optionType: 'PE', strike: spStrike, ltp: spLtp, delta: spDelta, iv: shortPutRow.peIv || 15, role: 'Short Put' },
-    { action: 'SELL', optionType: 'CE', strike: scStrike, ltp: scLtp, delta: scDelta, iv: shortCallRow.ceIv || 15, role: 'Short Call' },
-    { action: 'BUY', optionType: 'CE', strike: lcStrike, ltp: lcLtp, delta: lcDelta, iv: longCallRow.ceIv || 15, role: 'Long Call Wing' },
+    { action: 'BUY', optionType: 'PE', strike: lpStrike, ltp: lpLtp, delta: lpDelta, iv: longPutRow.peIv || 0, role: 'Long Put Wing' },
+    { action: 'SELL', optionType: 'PE', strike: spStrike, ltp: spLtp, delta: spDelta, iv: shortPutRow.peIv || 0, role: 'Short Put' },
+    { action: 'SELL', optionType: 'CE', strike: scStrike, ltp: scLtp, delta: scDelta, iv: shortCallRow.ceIv || 0, role: 'Short Call' },
+    { action: 'BUY', optionType: 'CE', strike: lcStrike, ltp: lcLtp, delta: lcDelta, iv: longCallRow.ceIv || 0, role: 'Long Call Wing' },
   ];
 
   // Net Credit per Share = (Short Call LTP + Short Put LTP) - (Long Call LTP + Long Put LTP)
@@ -119,10 +145,9 @@ export const calculateIronCondorStrategy = (
   const payoffRows: PayoffRow[] = [];
   const minSpot = Math.round(lowerBreakeven * 0.96);
   const maxSpot = Math.round(upperBreakeven * 1.04);
-  const step = Math.max(10, Math.round((maxSpot - minSpot) / 15));
+  const step = Math.max(5, Math.round((maxSpot - minSpot) / 15));
 
   for (let s = minSpot; s <= maxSpot; s += step) {
-    // Payoff at Expiry = Net Credit - Max(0, Short Put - S) + Max(0, Long Put - S) - Max(0, S - Short Call) + Max(0, S - Long Call)
     const putShortLoss = Math.max(0, spStrike - s);
     const putLongGain = Math.max(0, lpStrike - s);
     const callShortLoss = Math.max(0, s - scStrike);
@@ -142,7 +167,7 @@ export const calculateIronCondorStrategy = (
   }
 
   return {
-    symbol: optionChain[0]?.symbol || 'NIFTY',
+    symbol: symbol.toUpperCase(),
     spotPrice,
     lotSize,
     legs,
