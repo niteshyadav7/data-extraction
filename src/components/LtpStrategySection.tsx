@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import type { DashboardMetrics } from '../types';
 import { calculateLtpReversalStrategy } from '../utils/ltpStrategyEngine';
 import { TradeAdjustmentEngine } from './TradeAdjustmentEngine';
-import { ArrowLeft, Layers, AlertTriangle, CheckCircle2, ShieldCheck, Activity, Sparkles, TrendingUp, TrendingDown, Zap, Shield } from 'lucide-react';
+import { DisciplineChecklist } from './DisciplineChecklist';
+import { ArrowLeft, Layers, AlertTriangle, CheckCircle2, ShieldCheck, Activity, Sparkles, TrendingUp, TrendingDown, Zap, Shield, FileText } from 'lucide-react';
 
 interface LtpStrategySectionProps {
   metrics: DashboardMetrics | null;
@@ -14,6 +15,7 @@ export const LtpStrategySection: React.FC<LtpStrategySectionProps> = ({
   onBackToDashboard
 }) => {
   const [selectedMode, setSelectedMode] = useState<'OPTION_SELLING' | 'OPTION_BUYING_CALL' | 'OPTION_BUYING_PUT' | 'OPTION_BUYING_STRADDLE'>('OPTION_SELLING');
+  const [showDiscipline, setShowDiscipline] = useState<boolean>(true);
 
   if (!metrics || !metrics.completeChain || metrics.completeChain.length < 5) {
     return (
@@ -58,7 +60,7 @@ export const LtpStrategySection: React.FC<LtpStrategySectionProps> = ({
   return (
     <div style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto' }}>
       {/* Top Header Navigation */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
         <button
           onClick={onBackToDashboard}
           className="btn-secondary"
@@ -67,10 +69,36 @@ export const LtpStrategySection: React.FC<LtpStrategySectionProps> = ({
           <ArrowLeft size={16} /> ← Back to Main Dashboard Overview
         </button>
 
-        <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)' }}>
-          Current Exchange Spot: <strong style={{ color: 'var(--text-main)' }}>₹{spot.toLocaleString('en-IN')}</strong>
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <button
+            onClick={() => setShowDiscipline(!showDiscipline)}
+            style={{
+              padding: '6px 14px',
+              borderRadius: '6px',
+              fontWeight: 700,
+              fontSize: '0.82rem',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              backgroundColor: showDiscipline ? 'var(--accent-gold-dark)' : 'var(--bg-main)',
+              color: showDiscipline ? '#FFF' : 'var(--text-main)',
+              border: `1.5px solid ${showDiscipline ? 'var(--accent-gold-dark)' : 'var(--border-color)'}`
+            }}
+          >
+            <FileText size={15} /> {showDiscipline ? 'Hide Discipline Code' : 'Show Discipline Code'}
+          </button>
+
+          <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)' }}>
+            Current Exchange Spot: <strong style={{ color: 'var(--text-main)' }}>₹{spot.toLocaleString('en-IN')}</strong>
+          </span>
+        </div>
       </div>
+
+      {/* Trader Discipline Code Checklist Component */}
+      {showDiscipline && (
+        <DisciplineChecklist onClose={() => setShowDiscipline(false)} />
+      )}
 
       {/* NO-TRADE DAY / TRADE PERMISSION BANNER */}
       <div className="card" style={{
