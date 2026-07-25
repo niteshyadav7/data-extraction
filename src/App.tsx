@@ -36,7 +36,7 @@ import { loadStocksList } from './utils/stocksParser';
 
 export function App() {
   const [riskFreeRate, setRiskFreeRate] = useState<number>(5.25);
-  const [isLiveSync, setIsLiveSync] = useState<boolean>(true);
+  const [isLiveSync, setIsLiveSync] = useState<boolean>(false);
   const [syncInterval, setSyncInterval] = useState<number>(60);
   const [selectedSymbol, setSelectedSymbol] = useState<string>('NIFTY');
   const [selectedType, setSelectedType] = useState<'INDEX' | 'STOCK'>('INDEX');
