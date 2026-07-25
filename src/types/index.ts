@@ -174,6 +174,12 @@ export interface IvAnalysisData {
   tailRiskSkew?: number;
   otm2PctPutIv?: number;
   otm2PctCallIv?: number;
+  impliedVix: number;
+  putIvSkew: number;
+  callIvSkew: number;
+  skewRegime: 'CRASH_HEDGING' | 'BULLISH_FOMO' | 'NEUTRAL_BALANCED';
+  skewRegimeLabel: string;
+  volatilityRegime: 'HIGH_VOLATILITY' | 'MODERATE_VOLATILITY' | 'LOW_VOLATILITY';
   ivSmile: {
     strike: number;
     ceIv: number;

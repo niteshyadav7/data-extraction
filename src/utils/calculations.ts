@@ -285,7 +285,7 @@ export const calculateDashboardMetrics = (
 
   liquidityAnalysis.sort((a, b) => b.liquidityScore - a.liquidityScore);
 
-  // 7. IV Analysis
+  // 7. IV Analysis & Direct Implied VIX Calculation
   const atmRow = sortedChain.find(rRow => rRow.strikePrice === atmStrike) || sortedChain[0];
   const atmCeIv = atmRow ? atmRow.ceIv : 0;
   const atmPeIv = atmRow ? atmRow.peIv : 0;
@@ -310,6 +310,71 @@ export const calculateDashboardMetrics = (
   const otm2PctCallIv = otm2PctCallRow ? otm2PctCallRow.ceIv : avgCeIv;
   const tailRiskSkew = Math.round((otm2PctPutIv - otm2PctCallIv) * 100) / 100;
 
+  const putIvSkew = Math.round((otm2PctPutIv - atmIv) * 100) / 100;
+  const callIvSkew = Math.round((otm2PctCallIv - atmIv) * 100) / 100;
+
+  // Compute Theoretical Implied India VIX using CBOE/NSE Variance Formula directly from Chain
+  const T = Math.max(daysToExpiry, 0.5) / 365.0;
+  const forwardF = futuresPrice > 0 ? futuresPrice : spotPrice * Math.exp(r * T);
+
+  let varianceSum = 0;
+  let k0Strike = atmStrike;
+  const otmOptionRows = sortedChain.filter(r => r.strikePrice > 0);
+
+  if (otmOptionRows.length >= 3) {
+    for (let i = 0; i < otmOptionRows.length; i++) {
+      const cur = otmOptionRows[i];
+      const prevK = i > 0 ? otmOptionRows[i - 1].strikePrice : cur.strikePrice;
+      const nextK = i < otmOptionRows.length - 1 ? otmOptionRows[i + 1].strikePrice : cur.strikePrice;
+      const deltaK = (nextK - prevK) / 2.0;
+
+      if (deltaK <= 0) continue;
+
+      let midPrice = 0;
+      if (cur.strikePrice < forwardF) {
+        midPrice = cur.peLtp > 0 ? cur.peLtp : 0;
+      } else if (cur.strikePrice > forwardF) {
+        midPrice = cur.ceLtp > 0 ? cur.ceLtp : 0;
+      } else {
+        midPrice = (cur.ceLtp + cur.peLtp) / 2.0;
+        k0Strike = cur.strikePrice;
+      }
+
+      if (midPrice > 0) {
+        const contrib = (deltaK / (cur.strikePrice * cur.strikePrice)) * Math.exp(r * T) * midPrice;
+        varianceSum += contrib;
+      }
+    }
+  }
+
+  let calculatedVixVal = 0;
+  if (varianceSum > 0) {
+    const rawVar = (2 / T) * varianceSum - (1 / T) * Math.pow((forwardF / (k0Strike || spotPrice)) - 1, 2);
+    if (rawVar > 0) {
+      calculatedVixVal = Math.round(100 * Math.sqrt(rawVar) * 100) / 100;
+    }
+  }
+
+  // Fallback to ATM IV if chain pricing is sparse
+  const impliedVix = (calculatedVixVal >= 5 && calculatedVixVal <= 80) ? calculatedVixVal : Math.round(atmIv * 100) / 100;
+
+  let skewRegime: 'CRASH_HEDGING' | 'BULLISH_FOMO' | 'NEUTRAL_BALANCED' = 'NEUTRAL_BALANCED';
+  let skewRegimeLabel = 'Balanced Volatility Skew';
+  if (tailRiskSkew >= 2.0) {
+    skewRegime = 'CRASH_HEDGING';
+    skewRegimeLabel = `Institutional Crash Hedging (Put IV +${tailRiskSkew}% over Call IV)`;
+  } else if (tailRiskSkew <= -1.5) {
+    skewRegime = 'BULLISH_FOMO';
+    skewRegimeLabel = `Bullish Call Demand Skew (Call IV +${Math.abs(tailRiskSkew)}% over Put IV)`;
+  }
+
+  let volatilityRegime: 'HIGH_VOLATILITY' | 'MODERATE_VOLATILITY' | 'LOW_VOLATILITY' = 'MODERATE_VOLATILITY';
+  if (impliedVix >= 17.5) {
+    volatilityRegime = 'HIGH_VOLATILITY';
+  } else if (impliedVix <= 12.0) {
+    volatilityRegime = 'LOW_VOLATILITY';
+  }
+
   const ivSmile = sortedChain.map(rRow => ({ strike: rRow.strikePrice, ceIv: rRow.ceIv, peIv: rRow.peIv }));
 
   const ivAnalysis: IvAnalysisData = {
@@ -320,12 +385,16 @@ export const calculateDashboardMetrics = (
     tailRiskSkew,
     otm2PctPutIv,
     otm2PctCallIv,
+    impliedVix,
+    putIvSkew,
+    callIvSkew,
+    skewRegime,
+    skewRegimeLabel,
+    volatilityRegime,
     ivSmile
   };
 
   // 8. Black-Scholes Greeks
-  const T = Math.max(daysToExpiry, 0.5) / 365.0;
-
   const greeksTable: GreekRow[] = sortedChain.map(rRow => {
     const ceSigma = (rRow.ceIv > 0 ? rRow.ceIv : (atmIv > 0 ? atmIv : 14.0)) / 100.0;
     const peSigma = (rRow.peIv > 0 ? rRow.peIv : (atmIv > 0 ? atmIv : 14.0)) / 100.0;
