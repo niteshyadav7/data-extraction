@@ -465,6 +465,7 @@ export function App() {
         onSelectSymbol={handleSelectSymbol}
         onReset={handleReset}
         onGoToDashboard={() => handleSelectView('DASHBOARD')}
+        onOpenBacktest={() => handleSelectView('HISTORICAL_BACKTEST')}
       />
 
       <div style={{ display: 'flex', width: '100%', minHeight: 'calc(100vh - 70px)' }}>

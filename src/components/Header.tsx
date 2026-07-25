@@ -1,5 +1,5 @@
 import React from 'react';
-import { Download, RefreshCw, BarChart2, FileSpreadsheet } from 'lucide-react';
+import { Download, RefreshCw, BarChart2, FileSpreadsheet, Award } from 'lucide-react';
 import type { DashboardMetrics } from '../types';
 import { SymbolSearch } from './SymbolSearch';
 import { exportAnalysisToExcel } from '../utils/exportExcel';
@@ -12,6 +12,7 @@ interface HeaderProps {
   onSelectSymbol: (symbol: string, type: 'INDEX' | 'STOCK') => void;
   onReset: () => void;
   onGoToDashboard?: () => void;
+  onOpenBacktest?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -19,7 +20,8 @@ export const Header: React.FC<HeaderProps> = ({
   selectedSymbol,
   onSelectSymbol,
   onReset,
-  onGoToDashboard
+  onGoToDashboard,
+  onOpenBacktest
 }) => {
   return (
     <header style={{
@@ -72,6 +74,16 @@ export const Header: React.FC<HeaderProps> = ({
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
         {metrics && (
           <>
+            <button
+              onClick={onOpenBacktest}
+              className="btn-secondary"
+              title="Open Multi-Strategy Historical Backtest Studio"
+              style={{ backgroundColor: '#F4ECF7', borderColor: '#BB8FCE', color: '#8E44AD', fontWeight: 700 }}
+            >
+              <Award size={16} color="#8E44AD" />
+              Backtest Studio
+            </button>
+
             <button
               onClick={() => exportAnalysisToJson(metrics, selectedSymbol)}
               className="btn-secondary"
