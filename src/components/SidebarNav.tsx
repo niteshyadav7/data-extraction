@@ -2,25 +2,28 @@ import React, { useState, useEffect } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   LayoutGrid,
   BarChart2,
-  Shield,
+  ShieldCheck,
   TrendingUp,
   Zap,
   Target,
   Table,
   Calculator,
   AlertTriangle,
-  Layers,
+  Briefcase,
+  Cpu,
   Activity,
-  Award
+  Award,
+  Layers
 } from 'lucide-react';
 
 interface NavSection {
   id: string;
   label: string;
   icon: any;
-  category?: string;
+  iconColor: string;
   badge?: string;
   isViewSwitch?: boolean;
   viewName?: 'DASHBOARD' | 'STRATEGY_HUB' | 'IRON_CONDOR';
@@ -40,36 +43,55 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
   const [currentActive, setCurrentActive] = useState<string>(activeSection);
 
-  const navCategories: { title: string; items: NavSection[] }[] = [
+  // Accordion state: closed by default (OVERVIEW open)
+  const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({
+    'OVERVIEW': true,
+    'DERIVATIVES': false,
+    'QUANT TOOLS': false,
+    'QUANT STRATEGIES': false
+  });
+
+  const toggleCategory = (title: string) => {
+    setOpenCategories(prev => ({
+      ...prev,
+      [title]: !prev[title]
+    }));
+  };
+
+  const navCategories: { title: string; categoryIcon: any; items: NavSection[] }[] = [
     {
       title: 'OVERVIEW',
+      categoryIcon: LayoutGrid,
       items: [
-        { id: 'sec-summary', label: 'Market Summary', icon: LayoutGrid },
-        { id: 'sec-pcr', label: 'PCR & Gauge', icon: BarChart2 },
-        { id: 'sec-support', label: 'Support & Resistance', icon: Shield, badge: 'EOR/EOS' },
+        { id: 'sec-summary', label: 'Market Summary', icon: LayoutGrid, iconColor: 'var(--accent-gold-dark)' },
+        { id: 'sec-pcr', label: 'PCR & Gauge', icon: BarChart2, iconColor: '#27AE60' },
+        { id: 'sec-support', label: 'Support & Resistance', icon: ShieldCheck, iconColor: '#2980B9', badge: 'EOR/EOS' },
       ]
     },
     {
       title: 'DERIVATIVES',
+      categoryIcon: TrendingUp,
       items: [
-        { id: 'sec-oi', label: 'OI & Build-ups', icon: TrendingUp },
-        { id: 'sec-greeks', label: 'IV & Greeks', icon: Zap },
-        { id: 'sec-expected', label: 'Expected Move', icon: Target },
+        { id: 'sec-oi', label: 'OI & Build-ups', icon: TrendingUp, iconColor: '#8E44AD' },
+        { id: 'sec-greeks', label: 'IV & Greeks', icon: Zap, iconColor: '#D35400' },
+        { id: 'sec-expected', label: 'Expected Move', icon: Target, iconColor: '#C0392B' },
       ]
     },
     {
       title: 'QUANT TOOLS',
+      categoryIcon: Calculator,
       items: [
-        { id: 'sec-chain', label: 'Option Chain', icon: Table },
-        { id: 'sec-ltp', label: 'LTP Calculator', icon: Calculator, badge: 'Step 18' },
-        { id: 'sec-warnings', label: 'Audit Warnings', icon: AlertTriangle },
+        { id: 'sec-chain', label: 'Option Chain', icon: Table, iconColor: '#16A085' },
+        { id: 'sec-ltp', label: 'LTP Calculator', icon: Calculator, iconColor: '#34495E', badge: 'Step 18' },
+        { id: 'sec-warnings', label: 'Audit Warnings', icon: AlertTriangle, iconColor: '#E67E22' },
       ]
     },
     {
       title: 'QUANT STRATEGIES',
+      categoryIcon: Layers,
       items: [
-        { id: 'sec-iron-condor', label: 'Iron Condor Strategy', icon: Layers, badge: 'Dynamic', isViewSwitch: true, viewName: 'IRON_CONDOR' },
-        { id: 'sec-strategy', label: 'Strategy Studio', icon: Layers, badge: 'All', isViewSwitch: true, viewName: 'STRATEGY_HUB' },
+        { id: 'sec-iron-condor', label: 'Iron Condor Strategy', icon: Briefcase, iconColor: '#27AE60', badge: 'Dynamic', isViewSwitch: true, viewName: 'IRON_CONDOR' },
+        { id: 'sec-strategy', label: 'Strategy Studio', icon: Cpu, iconColor: '#9B59B6', badge: 'All', isViewSwitch: true, viewName: 'STRATEGY_HUB' },
       ]
     }
   ];
@@ -105,10 +127,12 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
   useEffect(() => {
     if (currentView === 'STRATEGY_HUB') {
       setCurrentActive('sec-strategy');
+      setOpenCategories(prev => ({ ...prev, 'QUANT STRATEGIES': true }));
       return;
     }
     if (currentView === 'IRON_CONDOR') {
       setCurrentActive('sec-iron-condor');
+      setOpenCategories(prev => ({ ...prev, 'QUANT STRATEGIES': true }));
       return;
     }
 
@@ -123,6 +147,8 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
             const height = el.offsetHeight;
             if (scrollPosition >= top && scrollPosition < top + height) {
               setCurrentActive(item.id);
+              // Auto-open active category on scroll
+              setOpenCategories(prev => ({ ...prev, [cat.title]: true }));
               break;
             }
           }
@@ -188,78 +214,110 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
         </button>
       </div>
 
-      {/* Nav List */}
+      {/* Accordion Nav List */}
       <div style={{ flex: 1, overflowY: 'auto', padding: isCollapsed ? '12px 6px' : '16px 12px' }}>
-        {navCategories.map((cat, catIdx) => (
-          <div key={catIdx} style={{ marginBottom: isCollapsed ? '16px' : '20px' }}>
-            {!isCollapsed && (
-              <div style={{
-                fontSize: '0.68rem',
-                fontWeight: 800,
-                color: 'var(--text-muted)',
-                letterSpacing: '1px',
-                marginBottom: '8px',
-                paddingLeft: '8px'
-              }}>
-                {cat.title}
-              </div>
-            )}
+        {navCategories.map((cat, catIdx) => {
+          const isOpen = !!openCategories[cat.title];
+          const CategoryIcon = cat.categoryIcon;
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              {cat.items.map((item) => {
-                const Icon = item.icon;
-                const isActive = (currentView === 'IRON_CONDOR' && item.id === 'sec-iron-condor') || (currentView === 'STRATEGY_HUB' && item.id === 'sec-strategy') || (currentView === 'DASHBOARD' && currentActive === item.id);
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => handleItemClick(item)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: isCollapsed ? '0px' : '10px',
-                      justifyContent: isCollapsed ? 'center' : 'flex-start',
-                      width: '100%',
-                      padding: isCollapsed ? '10px 0' : '9px 12px',
-                      borderRadius: '8px',
-                      fontSize: '0.85rem',
-                      fontWeight: isActive ? 700 : 500,
-                      cursor: 'pointer',
-                      border: 'none',
-                      backgroundColor: isActive ? 'var(--accent-pill)' : 'transparent',
-                      color: isActive ? 'var(--accent-gold-dark)' : 'var(--text-main)',
-                      borderLeft: isActive ? '3px solid var(--accent-gold)' : '3px solid transparent',
-                      transition: 'all 0.15s ease',
-                      position: 'relative'
-                    }}
-                    title={isCollapsed ? item.label : undefined}
-                  >
-                    <Icon size={18} color={isActive ? 'var(--accent-gold-dark)' : 'var(--text-muted)'} />
+          return (
+            <div key={catIdx} style={{ marginBottom: isCollapsed ? '16px' : '12px' }}>
+              {/* Accordion Header */}
+              {!isCollapsed ? (
+                <button
+                  onClick={() => toggleCategory(cat.title)}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '8px 6px',
+                    backgroundColor: 'transparent',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '0.68rem',
+                    fontWeight: 800,
+                    color: 'var(--text-muted)',
+                    letterSpacing: '0.8px',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <CategoryIcon size={14} color="var(--accent-gold-dark)" /> {cat.title}
+                  </span>
+                  {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                </button>
+              ) : (
+                <div style={{
+                  height: '1px',
+                  backgroundColor: 'var(--border-color)',
+                  margin: '10px 4px'
+                }} />
+              )}
 
-                    {!isCollapsed && (
-                      <span style={{ flex: 1, textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {item.label}
-                      </span>
-                    )}
+              {/* Accordion Sub-Items */}
+              {(isOpen || isCollapsed) && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: isCollapsed ? '0' : '4px' }}>
+                  {cat.items.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = (currentView === 'IRON_CONDOR' && item.id === 'sec-iron-condor') ||
+                      (currentView === 'STRATEGY_HUB' && item.id === 'sec-strategy') ||
+                      (currentView === 'DASHBOARD' && currentActive === item.id);
 
-                    {!isCollapsed && item.badge && (
-                      <span style={{
-                        fontSize: '0.65rem',
-                        fontWeight: 700,
-                        padding: '1px 6px',
-                        borderRadius: '4px',
-                        backgroundColor: 'var(--bg-main)',
-                        color: 'var(--accent-gold-dark)',
-                        border: '1px solid var(--border-color)'
-                      }}>
-                        {item.badge}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => handleItemClick(item)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: isCollapsed ? '0px' : '10px',
+                          justifyContent: isCollapsed ? 'center' : 'flex-start',
+                          width: '100%',
+                          padding: isCollapsed ? '10px 0' : '9px 12px',
+                          borderRadius: '8px',
+                          fontSize: '0.85rem',
+                          fontWeight: isActive ? 700 : 500,
+                          cursor: 'pointer',
+                          border: 'none',
+                          backgroundColor: isActive ? 'var(--accent-pill)' : 'transparent',
+                          color: isActive ? 'var(--accent-gold-dark)' : 'var(--text-main)',
+                          borderLeft: isActive ? '3px solid var(--accent-gold)' : '3px solid transparent',
+                          transition: 'all 0.15s ease',
+                          position: 'relative'
+                        }}
+                        title={isCollapsed ? `${item.label} (${cat.title})` : undefined}
+                      >
+                        <Icon size={18} color={isActive ? 'var(--accent-gold-dark)' : item.iconColor} />
+
+                        {!isCollapsed && (
+                          <span style={{ flex: 1, textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {item.label}
+                          </span>
+                        )}
+
+                        {!isCollapsed && item.badge && (
+                          <span style={{
+                            fontSize: '0.65rem',
+                            fontWeight: 700,
+                            padding: '1px 6px',
+                            borderRadius: '4px',
+                            backgroundColor: 'var(--bg-main)',
+                            color: 'var(--accent-gold-dark)',
+                            border: '1px solid var(--border-color)'
+                          }}>
+                            {item.badge}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Footer Info */}
