@@ -52,10 +52,23 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
   });
 
   const toggleCategory = (title: string) => {
-    setOpenCategories(prev => ({
-      ...prev,
-      [title]: !prev[title]
-    }));
+    setOpenCategories(prev => {
+      const isCurrentlyOpen = !!prev[title];
+      if (isCurrentlyOpen) {
+        return {
+          'OVERVIEW': false,
+          'DERIVATIVES': false,
+          'QUANT TOOLS': false,
+          'QUANT STRATEGIES': false
+        };
+      }
+      return {
+        'OVERVIEW': title === 'OVERVIEW',
+        'DERIVATIVES': title === 'DERIVATIVES',
+        'QUANT TOOLS': title === 'QUANT TOOLS',
+        'QUANT STRATEGIES': title === 'QUANT STRATEGIES'
+      };
+    });
   };
 
   const navCategories: { title: string; categoryIcon: any; items: NavSection[] }[] = [
@@ -101,8 +114,15 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
     }
   ];
 
-  const handleItemClick = (item: NavSection) => {
+  const handleItemClick = (item: NavSection, catTitle: string) => {
     setCurrentActive(item.id);
+    setOpenCategories({
+      'OVERVIEW': catTitle === 'OVERVIEW',
+      'DERIVATIVES': catTitle === 'DERIVATIVES',
+      'QUANT TOOLS': catTitle === 'QUANT TOOLS',
+      'QUANT STRATEGIES': catTitle === 'QUANT STRATEGIES'
+    });
+
     if (item.isViewSwitch && item.viewName && onSelectView) {
       onSelectView(item.viewName, item.id);
     } else if (onSelectView) {
@@ -130,44 +150,23 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
   };
 
   useEffect(() => {
-    if (currentView === 'STRATEGY_HUB') {
-      setCurrentActive('sec-strategy');
-      setOpenCategories(prev => ({ ...prev, 'QUANT STRATEGIES': true }));
-      return;
-    }
-    if (currentView === 'IRON_CONDOR') {
-      setCurrentActive('sec-iron-condor');
-      setOpenCategories(prev => ({ ...prev, 'QUANT STRATEGIES': true }));
-      return;
-    }
-    if (currentView === 'IRON_BUTTERFLY') {
-      setCurrentActive('sec-iron-butterfly');
-      setOpenCategories(prev => ({ ...prev, 'QUANT STRATEGIES': true }));
-      return;
-    }
-    if (currentView === 'BULL_PUT_CREDIT') {
-      setCurrentActive('sec-bull-put-credit');
-      setOpenCategories(prev => ({ ...prev, 'QUANT STRATEGIES': true }));
-      return;
-    }
-    if (currentView === 'BEAR_CALL_CREDIT') {
-      setCurrentActive('sec-bear-call-credit');
-      setOpenCategories(prev => ({ ...prev, 'QUANT STRATEGIES': true }));
-      return;
-    }
-    if (currentView === 'SHORT_STRANGLE') {
-      setCurrentActive('sec-short-strangle');
-      setOpenCategories(prev => ({ ...prev, 'QUANT STRATEGIES': true }));
-      return;
-    }
-    if (currentView === 'RATIO_PUT_SPREAD') {
-      setCurrentActive('sec-ratio-put-spread');
-      setOpenCategories(prev => ({ ...prev, 'QUANT STRATEGIES': true }));
-      return;
-    }
-    if (currentView === 'CALENDAR_SPREAD') {
-      setCurrentActive('sec-calendar-spread');
-      setOpenCategories(prev => ({ ...prev, 'QUANT STRATEGIES': true }));
+    if (currentView !== 'DASHBOARD') {
+      let activeId = 'sec-strategy';
+      if (currentView === 'IRON_CONDOR') activeId = 'sec-iron-condor';
+      else if (currentView === 'IRON_BUTTERFLY') activeId = 'sec-iron-butterfly';
+      else if (currentView === 'BULL_PUT_CREDIT') activeId = 'sec-bull-put-credit';
+      else if (currentView === 'BEAR_CALL_CREDIT') activeId = 'sec-bear-call-credit';
+      else if (currentView === 'SHORT_STRANGLE') activeId = 'sec-short-strangle';
+      else if (currentView === 'RATIO_PUT_SPREAD') activeId = 'sec-ratio-put-spread';
+      else if (currentView === 'CALENDAR_SPREAD') activeId = 'sec-calendar-spread';
+
+      setCurrentActive(activeId);
+      setOpenCategories({
+        'OVERVIEW': false,
+        'DERIVATIVES': false,
+        'QUANT TOOLS': false,
+        'QUANT STRATEGIES': true
+      });
       return;
     }
 
@@ -182,8 +181,13 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
             const height = el.offsetHeight;
             if (scrollPosition >= top && scrollPosition < top + height) {
               setCurrentActive(item.id);
-              // Auto-open active category on scroll
-              setOpenCategories(prev => ({ ...prev, [cat.title]: true }));
+              // Auto-open active category on scroll and close others
+              setOpenCategories({
+                'OVERVIEW': cat.title === 'OVERVIEW',
+                'DERIVATIVES': cat.title === 'DERIVATIVES',
+                'QUANT TOOLS': cat.title === 'QUANT TOOLS',
+                'QUANT STRATEGIES': cat.title === 'QUANT STRATEGIES'
+              });
               break;
             }
           }
@@ -303,7 +307,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
                     return (
                       <button
                         key={item.id}
-                        onClick={() => handleItemClick(item)}
+                        onClick={() => handleItemClick(item, cat.title)}
                         style={{
                           display: 'flex',
                           alignItems: 'center',
