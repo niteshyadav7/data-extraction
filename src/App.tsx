@@ -385,9 +385,9 @@ export function App() {
     setMetrics(null);
   };
 
-  const [currentView, setCurrentView] = useState<'DASHBOARD' | 'STRATEGY_HUB'>('DASHBOARD');
+  const [currentView, setCurrentView] = useState<'DASHBOARD' | 'STRATEGY_HUB' | 'IRON_CONDOR'>('DASHBOARD');
 
-  const handleSelectView = (view: 'DASHBOARD' | 'STRATEGY_HUB', sectionId?: string) => {
+  const handleSelectView = (view: 'DASHBOARD' | 'STRATEGY_HUB' | 'IRON_CONDOR', sectionId?: string) => {
     setCurrentView(view);
     if (view === 'DASHBOARD' && sectionId) {
       setTimeout(() => {
@@ -437,11 +437,20 @@ export function App() {
             onManualLiveSync={() => fetchSymbolData(selectedSymbol, selectedType)}
           />
 
-          {currentView === 'STRATEGY_HUB' ? (
+          {currentView === 'IRON_CONDOR' ? (
             <StrategyHubSection
               optionChain={metrics?.completeChain || []}
               currentSpot={metrics?.marketSummary.spotPrice || 0}
               selectedSymbol={selectedSymbol}
+              initialTab="IRON_CONDOR"
+              onBackToDashboard={() => setCurrentView('DASHBOARD')}
+            />
+          ) : currentView === 'STRATEGY_HUB' ? (
+            <StrategyHubSection
+              optionChain={metrics?.completeChain || []}
+              currentSpot={metrics?.marketSummary.spotPrice || 0}
+              selectedSymbol={selectedSymbol}
+              initialTab="ALL"
               onBackToDashboard={() => setCurrentView('DASHBOARD')}
             />
           ) : (

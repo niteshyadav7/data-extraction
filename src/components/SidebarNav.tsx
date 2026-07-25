@@ -23,13 +23,13 @@ interface NavSection {
   category?: string;
   badge?: string;
   isViewSwitch?: boolean;
-  viewName?: 'DASHBOARD' | 'STRATEGY_HUB';
+  viewName?: 'DASHBOARD' | 'STRATEGY_HUB' | 'IRON_CONDOR';
 }
 
 interface SidebarNavProps {
   activeSection?: string;
-  currentView?: 'DASHBOARD' | 'STRATEGY_HUB';
-  onSelectView?: (view: 'DASHBOARD' | 'STRATEGY_HUB', sectionId?: string) => void;
+  currentView?: 'DASHBOARD' | 'STRATEGY_HUB' | 'IRON_CONDOR';
+  onSelectView?: (view: 'DASHBOARD' | 'STRATEGY_HUB' | 'IRON_CONDOR', sectionId?: string) => void;
 }
 
 export const SidebarNav: React.FC<SidebarNavProps> = ({
@@ -58,12 +58,18 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
       ]
     },
     {
-      title: 'QUANT TOOLS & STRATEGIES',
+      title: 'QUANT TOOLS',
       items: [
         { id: 'sec-chain', label: 'Option Chain', icon: Table },
         { id: 'sec-ltp', label: 'LTP Calculator', icon: Calculator, badge: 'Step 18' },
-        { id: 'sec-strategy', label: 'Strategy Hub', icon: Layers, badge: 'Full Page', isViewSwitch: true, viewName: 'STRATEGY_HUB' },
         { id: 'sec-warnings', label: 'Audit Warnings', icon: AlertTriangle },
+      ]
+    },
+    {
+      title: 'QUANT STRATEGIES',
+      items: [
+        { id: 'sec-iron-condor', label: 'Iron Condor Strategy', icon: Layers, badge: 'Dynamic', isViewSwitch: true, viewName: 'IRON_CONDOR' },
+        { id: 'sec-strategy', label: 'Strategy Studio', icon: Layers, badge: 'All', isViewSwitch: true, viewName: 'STRATEGY_HUB' },
       ]
     }
   ];
@@ -99,6 +105,10 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
   useEffect(() => {
     if (currentView === 'STRATEGY_HUB') {
       setCurrentActive('sec-strategy');
+      return;
+    }
+    if (currentView === 'IRON_CONDOR') {
+      setCurrentActive('sec-iron-condor');
       return;
     }
 
@@ -198,7 +208,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               {cat.items.map((item) => {
                 const Icon = item.icon;
-                const isActive = (currentView === 'STRATEGY_HUB' && item.id === 'sec-strategy') || (currentView === 'DASHBOARD' && currentActive === item.id);
+                const isActive = (currentView === 'IRON_CONDOR' && item.id === 'sec-iron-condor') || (currentView === 'STRATEGY_HUB' && item.id === 'sec-strategy') || (currentView === 'DASHBOARD' && currentActive === item.id);
                 return (
                   <button
                     key={item.id}

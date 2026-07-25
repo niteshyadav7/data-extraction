@@ -12,6 +12,7 @@ interface StrategyHubSectionProps {
   optionChain: any[];
   currentSpot: number;
   selectedSymbol?: string;
+  initialTab?: 'IRON_CONDOR' | 'BULL_CALL' | 'BEAR_PUT' | 'ALL';
   onBackToDashboard?: () => void;
 }
 
@@ -19,11 +20,21 @@ export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
   optionChain,
   currentSpot,
   selectedSymbol = 'NIFTY',
+  initialTab = 'IRON_CONDOR',
   onBackToDashboard
 }) => {
-  const [activeTab, setActiveTab] = useState<'IRON_CONDOR' | 'BULL_CALL' | 'BEAR_PUT'>('IRON_CONDOR');
+  const [activeTab, setActiveTab] = useState<'IRON_CONDOR' | 'BULL_CALL' | 'BEAR_PUT'>(
+    initialTab === 'ALL' ? 'IRON_CONDOR' : initialTab
+  );
   const [lotSize, setLotSize] = useState<number>(getDefaultLotSizeForSymbol(selectedSymbol));
   const [wingWidth, setWingWidth] = useState<number>(2);
+
+  // Sync activeTab if initialTab changes
+  useEffect(() => {
+    if (initialTab !== 'ALL') {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
 
   // Sync lot size when selectedSymbol changes
   useEffect(() => {
