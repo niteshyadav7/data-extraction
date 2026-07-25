@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Calculator, RefreshCw, TrendingUp, TrendingDown, Filter, HelpCircle, ChevronDown, ChevronUp, Info, Sparkles, ArrowLeft } from 'lucide-react';
-import { calculateLtpTargetMatrix } from '../utils/ltpCalculator';
+import { calculateLtpTargetMatrix, calculateInvestingDaddyMarketRegime } from '../utils/ltpCalculator';
 
 interface LtpCalculatorSectionProps {
   optionChain: any[];
@@ -24,7 +24,6 @@ export const LtpCalculatorSection: React.FC<LtpCalculatorSectionProps> = ({
   const [showGuide, setShowGuide] = useState<boolean>(true);
   const [showQuantMetrics, setShowQuantMetrics] = useState<boolean>(true);
 
-  // Update targetSpot when currentSpot changes initially
   useEffect(() => {
     if (currentSpot > 0 && targetSpot === 23767.45) {
       setTargetSpot(currentSpot);
@@ -35,7 +34,6 @@ export const LtpCalculatorSection: React.FC<LtpCalculatorSectionProps> = ({
 
   const activeCurrentSpot = currentSpot > 0 ? currentSpot : (optionChain[0]?.underlyingValue || 23767.45);
 
-  // Compute matrix
   const matrix = calculateLtpTargetMatrix(
     optionChain,
     activeCurrentSpot,
@@ -45,6 +43,8 @@ export const LtpCalculatorSection: React.FC<LtpCalculatorSectionProps> = ({
     daysToExpiry,
     riskFreeRate
   );
+
+  const investingDaddy = calculateInvestingDaddyMarketRegime(optionChain, activeCurrentSpot);
 
   // Find ATM Index
   let atmIndex = 0;
@@ -158,11 +158,98 @@ export const LtpCalculatorSection: React.FC<LtpCalculatorSectionProps> = ({
               <option value="ATM_5">ATM ± 5 Strikes (Focused)</option>
               <option value="ATM_10">ATM ± 10 Strikes (Standard)</option>
               <option value="ATM_15">ATM ± 15 Strikes (Wide)</option>
-              <option value="ALL">All Strikes ({matrix.length})</option>
             </select>
           </div>
         </div>
       </div>
+
+      {/* Investing Daddy Style Market Regime Banner & 5 Reversal Level Cards */}
+      {investingDaddy && (
+        <div className="card" style={{
+          marginBottom: '20px',
+          backgroundColor: 'rgba(197, 160, 89, 0.08)',
+          border: '2px solid var(--accent-gold)',
+          boxShadow: '0 4px 14px rgba(197, 160, 89, 0.12)'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '14px' }}>
+            <div>
+              <span style={{
+                fontSize: '0.72rem',
+                fontWeight: 800,
+                padding: '3px 10px',
+                borderRadius: '4px',
+                backgroundColor: 'var(--accent-gold-dark)',
+                color: '#FFF',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                marginBottom: '6px'
+              }}>
+                🏆 INVESTING DADDY OPTION CHAIN THEORY (VINAY TIWARI METHOD)
+              </span>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)' }}>
+                Market Regime: <span style={{ color: 'var(--accent-gold-dark)' }}>{investingDaddy.marketRegimeLabel}</span>
+              </h3>
+              <p style={{ fontSize: '0.84rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                {investingDaddy.goldenSignalReason}
+              </p>
+            </div>
+
+            <div style={{
+              padding: '10px 18px',
+              borderRadius: '8px',
+              backgroundColor: investingDaddy.goldenTradeSignal === 'BUY_CALL_AT_EOS' ? '#E2F0E5' : investingDaddy.goldenTradeSignal === 'BUY_PUT_AT_EOR' ? '#FADBD8' : 'var(--bg-main)',
+              border: `1.5px solid ${investingDaddy.goldenTradeSignal === 'BUY_CALL_AT_EOS' ? 'var(--color-green)' : investingDaddy.goldenTradeSignal === 'BUY_PUT_AT_EOR' ? 'var(--color-red)' : 'var(--accent-gold-dark)'}`,
+              textAlign: 'center'
+            }}>
+              <div style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-muted)' }}>INVESTING DADDY SIGNAL</div>
+              <div style={{
+                fontSize: '0.95rem',
+                fontWeight: 900,
+                color: investingDaddy.goldenTradeSignal === 'BUY_CALL_AT_EOS' ? 'var(--color-green)' : investingDaddy.goldenTradeSignal === 'BUY_PUT_AT_EOR' ? 'var(--color-red)' : 'var(--accent-gold-dark)',
+                marginTop: '2px'
+              }}>
+                {investingDaddy.goldenTradeSignal === 'BUY_CALL_AT_EOS' ? '🟢 BUY CALL AT EOS (REVERSAL)' :
+                 investingDaddy.goldenTradeSignal === 'BUY_PUT_AT_EOR' ? '🔴 BUY PUT AT EOR (REVERSAL)' :
+                 '🛡️ SELL CREDIT CORRIDOR (EOS ↔ EOR)'}
+              </div>
+            </div>
+          </div>
+
+          {/* 5 Key Reversal Level Cards */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '10px' }}>
+            <div style={{ padding: '10px', borderRadius: '6px', backgroundColor: 'var(--bg-main)', border: '1px solid var(--border-color)', textAlign: 'center' }}>
+              <div style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-muted)' }}>US (ULTIMATE SUPPORT)</div>
+              <div style={{ fontSize: '1.1rem', fontWeight: 900, color: 'var(--color-green)' }}>₹{investingDaddy.ultimateSupportUs}</div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>Max Put OI/Volume</div>
+            </div>
+
+            <div style={{ padding: '10px', borderRadius: '6px', backgroundColor: '#E2F0E5', border: '1px solid #ABEBC6', textAlign: 'center' }}>
+              <div style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--color-green)' }}>EOS (EXTENSION OF SUPPORT)</div>
+              <div style={{ fontSize: '1.1rem', fontWeight: 900, color: 'var(--color-green)' }}>₹{investingDaddy.extensionOfSupportEos}</div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--color-green)', marginTop: '2px' }}>Put Reversal Bounce Level</div>
+            </div>
+
+            <div style={{ padding: '10px', borderRadius: '6px', backgroundColor: '#FEF9E7', border: '1px solid #F9E79F', textAlign: 'center' }}>
+              <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#B7950B' }}>IMAGINARY LINE (ATM DIVIDE)</div>
+              <div style={{ fontSize: '1.1rem', fontWeight: 900, color: '#B7950B' }}>₹{investingDaddy.imaginaryLineAtm}</div>
+              <div style={{ fontSize: '0.72rem', color: '#B7950B', marginTop: '2px' }}>ITM / OTM Equilibrium</div>
+            </div>
+
+            <div style={{ padding: '10px', borderRadius: '6px', backgroundColor: '#FADBD8', border: '1px solid #F5B7B1', textAlign: 'center' }}>
+              <div style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--color-red)' }}>EOR (EXTENSION OF RESISTANCE)</div>
+              <div style={{ fontSize: '1.1rem', fontWeight: 900, color: 'var(--color-red)' }}>₹{investingDaddy.extensionOfResistanceEor}</div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--color-red)', marginTop: '2px' }}>Call Reversal Rejection Level</div>
+            </div>
+
+            <div style={{ padding: '10px', borderRadius: '6px', backgroundColor: 'var(--bg-main)', border: '1px solid var(--border-color)', textAlign: 'center' }}>
+              <div style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-muted)' }}>UR (ULTIMATE RESISTANCE)</div>
+              <div style={{ fontSize: '1.1rem', fontWeight: 900, color: 'var(--color-red)' }}>₹{investingDaddy.ultimateResistanceUr}</div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>Max Call OI/Volume</div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Expandable Usage Notes Guide Card */}
       {showGuide && (
