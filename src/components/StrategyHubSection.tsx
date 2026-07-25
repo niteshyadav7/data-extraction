@@ -1,5 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Layers, TrendingUp, TrendingDown, Target, Award, AlertCircle, ArrowLeft, Shield, Activity } from 'lucide-react';
+import {
+  Layers,
+  TrendingUp,
+  TrendingDown,
+  Target,
+  Award,
+  AlertCircle,
+  ArrowLeft,
+  Activity,
+  CheckCircle2,
+  XCircle,
+  Compass,
+  BarChart3
+} from 'lucide-react';
 import {
   calculateIronCondorStrategy,
   calculateBullCallSpread,
@@ -95,6 +108,8 @@ export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
 
   if (!result) return null;
 
+  const decision = result.decisionIntelligence;
+
   return (
     <div className="card" style={{ marginBottom: '24px', width: '100%' }}>
       {/* Back Button & Header */}
@@ -113,10 +128,10 @@ export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
           <div>
             <h2 style={{ fontSize: '1.3rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '10px' }}>
               <Layers size={24} color="var(--accent-gold)" />
-              Institutional Strategy Studio & Payoff Simulator ({selectedSymbol.toUpperCase()})
+              Institutional Strategy Studio & Decision Intelligence ({selectedSymbol.toUpperCase()})
             </h2>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-              100% dynamic strategy engine powered by Reversal Zones (EOS1/EOR1), Max Pain, Portfolio Greeks, and Time Decay.
+              Quantitative trade synthesis, Confluence Score %, Pros & Cons matrix, and Actionable Execution Plan.
             </p>
           </div>
 
@@ -126,11 +141,11 @@ export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
               fontWeight: 800,
               padding: '6px 14px',
               borderRadius: '6px',
-              backgroundColor: result.healthScore.rating === 'EXCELLENT' ? '#E2F0E5' : '#FEF9E7',
-              color: result.healthScore.rating === 'EXCELLENT' ? 'var(--color-green)' : '#B7950B',
-              border: `1px solid ${result.healthScore.rating === 'EXCELLENT' ? 'var(--color-green)' : '#F9E79F'}`
+              backgroundColor: decision.confidenceRating === 'HIGH CONFIDENCE' ? '#E2F0E5' : '#FEF9E7',
+              color: decision.confidenceRating === 'HIGH CONFIDENCE' ? 'var(--color-green)' : '#B7950B',
+              border: `1px solid ${decision.confidenceRating === 'HIGH CONFIDENCE' ? 'var(--color-green)' : '#F9E79F'}`
             }}>
-              ⭐ RATING: {result.healthScore.rating} ({result.healthScore.score}/100)
+              ⚡ {decision.confidenceRating} ({decision.confluenceScore}% CONFLUENCE)
             </span>
 
             <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-main)', backgroundColor: 'var(--bg-main)', padding: '6px 14px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
@@ -203,35 +218,136 @@ export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
         </button>
       </div>
 
-      {/* Extracted Reversal Levels & Rationale Bar */}
-      {result.reversalLevels && (
-        <div style={{
-          backgroundColor: 'var(--bg-main)',
-          borderRadius: '8px',
-          padding: '12px 18px',
-          marginBottom: '20px',
-          border: '1px solid var(--border-color)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '12px',
-          fontSize: '0.82rem'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700 }}>
-            <Shield size={16} color="var(--accent-gold-dark)" /> Reversal Alignment:
-            <span style={{ color: 'var(--color-green)', fontWeight: 600 }}>EOS1 Support ₹{result.reversalLevels.eos1}</span>
-            <span>|</span>
-            <span style={{ color: 'var(--color-red)', fontWeight: 600 }}>EOR1 Resistance ₹{result.reversalLevels.eor1}</span>
-            <span>|</span>
-            <span style={{ color: 'var(--color-blue)', fontWeight: 600 }}>Max Pain ₹{result.reversalLevels.maxPain}</span>
-          </div>
+      {/* SECTION 1: EXECUTIVE DECISION SUMMARY & CONFLUENCE GAUGE */}
+      <div style={{
+        backgroundColor: 'var(--bg-main)',
+        borderRadius: '10px',
+        padding: '20px',
+        marginBottom: '24px',
+        border: '1.5px solid var(--accent-gold)'
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '12px' }}>
+          <h3 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Compass size={20} color="var(--accent-gold-dark)" />
+            Executive Trade Summary & Quantitative Confluence Analysis
+          </h3>
 
-          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-            {result.healthScore.reversalAlignmentText}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-muted)' }}>
+              Trade Confluence Score:
+            </span>
+            <span style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--accent-gold-dark)' }}>
+              {decision.confluenceScore}%
+            </span>
           </div>
         </div>
-      )}
+
+        {/* Confluence Gauge Progress Bar */}
+        <div style={{ width: '100%', height: '8px', backgroundColor: 'var(--border-color)', borderRadius: '4px', overflow: 'hidden', marginBottom: '14px' }}>
+          <div style={{
+            width: `${decision.confluenceScore}%`,
+            height: '100%',
+            backgroundColor: decision.confluenceScore >= 80 ? 'var(--color-green)' : 'var(--accent-gold)',
+            borderRadius: '4px',
+            transition: 'width 0.4s ease'
+          }} />
+        </div>
+
+        <p style={{ fontSize: '0.9rem', color: 'var(--text-main)', lineHeight: '1.5', margin: 0 }}>
+          {decision.executiveSummary}
+        </p>
+      </div>
+
+      {/* SECTION 2: PROS & CONS MATRIX TABLE */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+        gap: '20px',
+        marginBottom: '24px'
+      }}>
+        {/* PROS CARD (Green) */}
+        <div style={{
+          backgroundColor: '#E2F0E5',
+          border: '1.5px solid var(--color-green)',
+          borderRadius: '10px',
+          padding: '18px 20px'
+        }}>
+          <h4 style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--color-green)', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <CheckCircle2 size={18} /> PROS / TAILWINDS (QUANTITATIVE EDGE)
+          </h4>
+          <ul style={{ margin: 0, paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {decision.pros.map((pro, i) => (
+              <li key={i} style={{ fontSize: '0.83rem', color: 'var(--text-main)', lineHeight: '1.4' }}>
+                {pro}
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* CONS CARD (Red) */}
+        <div style={{
+          backgroundColor: '#FADBD8',
+          border: '1.5px solid var(--color-red)',
+          borderRadius: '10px',
+          padding: '18px 20px'
+        }}>
+          <h4 style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--color-red)', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <XCircle size={18} /> CONS / HEADWINDS (QUANTITATIVE RISKS)
+          </h4>
+          <ul style={{ margin: 0, paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {decision.cons.map((con, i) => (
+              <li key={i} style={{ fontSize: '0.83rem', color: 'var(--text-main)', lineHeight: '1.4' }}>
+                {con}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      {/* SECTION 3: ACTIONABLE INSTITUTIONAL EXECUTION PLAN */}
+      <div style={{
+        backgroundColor: 'var(--bg-main)',
+        borderRadius: '10px',
+        padding: '18px 20px',
+        marginBottom: '24px',
+        border: '1.5px solid var(--border-color)'
+      }}>
+        <h3 style={{ fontSize: '0.95rem', fontWeight: 800, marginBottom: '14px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <BarChart3 size={18} color="var(--accent-gold-dark)" /> Institutional Actionable Execution & Management Plan
+        </h3>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '14px' }}>
+          {/* Entry Zone */}
+          <div style={{ backgroundColor: '#FFF', padding: '14px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+            <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--accent-gold-dark)', marginBottom: '4px' }}>
+              📍 RECOMMENDED ENTRY ZONE
+            </div>
+            <div style={{ fontSize: '0.83rem', color: 'var(--text-main)', fontWeight: 600, lineHeight: '1.4' }}>
+              {decision.executionPlan.entryZone}
+            </div>
+          </div>
+
+          {/* Profit Target */}
+          <div style={{ backgroundColor: '#FFF', padding: '14px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+            <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--color-green)', marginBottom: '4px' }}>
+              🎯 PROFIT TARGET EXIT (50% - 70%)
+            </div>
+            <div style={{ fontSize: '0.83rem', color: 'var(--text-main)', fontWeight: 600, lineHeight: '1.4' }}>
+              {decision.executionPlan.profitTarget}
+            </div>
+          </div>
+
+          {/* Adjustment Trigger */}
+          <div style={{ backgroundColor: '#FFF', padding: '14px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+            <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--color-red)', marginBottom: '4px' }}>
+              🛑 ADJUSTMENT / STOP-LOSS TRIGGER
+            </div>
+            <div style={{ fontSize: '0.83rem', color: 'var(--text-main)', fontWeight: 600, lineHeight: '1.4' }}>
+              {decision.executionPlan.adjustmentTrigger}
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Controls Bar: Lot Size & Options */}
       <div style={{

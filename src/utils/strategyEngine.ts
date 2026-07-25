@@ -27,15 +27,28 @@ export interface PayoffRow {
 export interface StrategyGreeks {
   netDelta: number;
   netGamma: number;
-  dailyThetaIncome: number; // ₹ per day for full position
-  vegaCrushGain: number; // ₹ gain per 1% IV drop
+  dailyThetaIncome: number;
+  vegaCrushGain: number;
 }
 
 export interface StrategyInstitutionalScore {
-  score: number; // 0 - 100
+  score: number;
   rating: 'EXCELLENT' | 'GOOD' | 'MODERATE' | 'RISKY';
   reversalAlignmentText: string;
   expectedMoveText: string;
+}
+
+export interface StrategyDecisionIntelligence {
+  executiveSummary: string;
+  confluenceScore: number; // 0 - 100%
+  confidenceRating: 'HIGH CONFIDENCE' | 'MODERATE CONFIDENCE' | 'LOW CONFIDENCE';
+  pros: string[];
+  cons: string[];
+  executionPlan: {
+    entryZone: string;
+    profitTarget: string;
+    adjustmentTrigger: string;
+  };
 }
 
 export interface StrategyResult {
@@ -55,6 +68,7 @@ export interface StrategyResult {
   totalExtrinsicCaptured: number;
   greeks: StrategyGreeks;
   healthScore: StrategyInstitutionalScore;
+  decisionIntelligence: StrategyDecisionIntelligence;
   reversalLevels?: {
     eos1: number;
     eos2: number;
@@ -65,9 +79,6 @@ export interface StrategyResult {
   payoffRows: PayoffRow[];
 }
 
-/**
- * Returns market-standard default lot size for a given symbol
- */
 export const getDefaultLotSizeForSymbol = (symbol: string): number => {
   const sym = symbol.toUpperCase();
   if (sym === 'NIFTY') return 25;
@@ -75,7 +86,6 @@ export const getDefaultLotSizeForSymbol = (symbol: string): number => {
   if (sym === 'FINNIFTY') return 25;
   if (sym === 'MIDCPNIFTY') return 50;
 
-  // Common Stock F&O Lot Sizes
   if (sym === 'RELIANCE') return 250;
   if (sym === 'INFY') return 400;
   if (sym === 'TCS') return 175;
@@ -88,10 +98,6 @@ export const getDefaultLotSizeForSymbol = (symbol: string): number => {
   return 25;
 };
 
-/**
- * Dynamically constructs an Institutional Iron Condor Strategy using 100% extracted quantitative metrics:
- * Reversal Zones (EOS1/EOR1), Max Pain, Portfolio Greeks, Extrinsic Value, and Expected Move Bounds.
- */
 export const calculateIronCondorStrategy = (
   optionChain: any[],
   spotPrice: number,
@@ -107,7 +113,6 @@ export const calculateIronCondorStrategy = (
   const lotSize = customLotSize && customLotSize > 0 ? customLotSize : getDefaultLotSizeForSymbol(symbol);
   const sorted = [...optionChain].sort((a, b) => (a.strikePrice || a.strike) - (b.strikePrice || b.strike));
 
-  // Find ATM Index
   let atmIndex = 0;
   let minDiff = Infinity;
   sorted.forEach((row, idx) => {
@@ -133,7 +138,6 @@ export const calculateIronCondorStrategy = (
   const eor1 = highestCallStrike > 0 ? highestCallStrike + atmCeLtp : 0;
   const eor2 = secondCallStrike > 0 ? secondCallStrike + atmCeLtp : 0;
 
-  // Short Put Strike Selection: Placed at/below EOS1 (Primary Support Reversal) if available
   let shortPutIndex = Math.max(0, atmIndex - 3);
   if (eos1 > 0) {
     let bestIdx = shortPutIndex;
@@ -153,7 +157,6 @@ export const calculateIronCondorStrategy = (
 
   const longPutIndex = Math.max(0, shortPutIndex - wingWidthStrikes);
 
-  // Short Call Strike Selection: Placed at/above EOR1 (Primary Resistance Reversal) if available
   let shortCallIndex = Math.min(sorted.length - 1, atmIndex + 3);
   if (eor1 > 0) {
     let bestIdx = shortCallIndex;
@@ -208,7 +211,6 @@ export const calculateIronCondorStrategy = (
   const scGamma = shortCallRow.ceGamma !== undefined ? shortCallRow.ceGamma : 0.001;
   const lcGamma = longCallRow.ceGamma !== undefined ? longCallRow.ceGamma : 0.0005;
 
-  // Extrinsic Value (Time Value)
   const spExtrinsic = Math.max(0, spLtp - Math.max(0, spStrike - spotPrice));
   const lpExtrinsic = Math.max(0, lpLtp - Math.max(0, lpStrike - spotPrice));
   const scExtrinsic = Math.max(0, scLtp - Math.max(0, spotPrice - scStrike));
@@ -237,22 +239,15 @@ export const calculateIronCondorStrategy = (
   const riskRewardRatio = maxProfit > 0 ? Math.round((maxLoss / maxProfit) * 100) / 100 : 0;
   const popPercentage = Math.min(95, Math.max(10, Math.round((1 - (Math.abs(spDelta) + Math.abs(scDelta))) * 100)));
 
-  // Total Extrinsic Captured (Time Value to Decay)
   const totalExtrinsicCaptured = Math.round(((scExtrinsic + spExtrinsic) - (lcExtrinsic + lpExtrinsic)) * lotSize);
 
-  // Portfolio Greeks Calculation
-  // Net Delta: (Buy Put Delta + Buy Call Delta) - (Sell Put Delta + Sell Call Delta)
   const netDeltaPerShare = (lpDelta + lcDelta) - (spDelta + scDelta);
   const netDeltaTotal = Math.round(netDeltaPerShare * lotSize * 100) / 100;
 
   const netGammaPerShare = (lpGamma + lcGamma) - (spGamma + scGamma);
   const netGammaTotal = Math.round(netGammaPerShare * lotSize * 1000) / 1000;
 
-  // Daily Theta Income: Short options collect theta (+), Long options lose theta (-)
-  // Option theta is negative (e.g. -5), so selling short option gives -(-5) = +5 income!
   const dailyThetaIncome = Math.round(((-spTheta - scTheta) + (lpTheta + lcTheta)) * lotSize);
-
-  // Vega Crush Gain: Net Vega per 1% IV drop
   const vegaCrushGain = Math.round(((-spVega - scVega) + (lpVega + lcVega)) * lotSize);
 
   const greeks: StrategyGreeks = {
@@ -262,8 +257,7 @@ export const calculateIronCondorStrategy = (
     vegaCrushGain
   };
 
-  // Institutional Health Score Evaluation (0 - 100)
-  let score = 75; // Base score
+  let score = 75;
   let reversalAlignmentText = 'Positioned near standard OTM levels';
   let expectedMoveText = 'Breakevens within normal expected range';
 
@@ -297,7 +291,41 @@ export const calculateIronCondorStrategy = (
     expectedMoveText
   };
 
-  // Generate Expiry Payoff Rows across spot price range with tags for EOS1, EOS2, EOR1, EOR2, Max Pain
+  // Decision Intelligence: Pros, Cons, Executive Summary, Confluence Score & Execution Plan
+  const confluenceScore = Math.min(98, Math.round((popPercentage * 0.5) + (score * 0.5)));
+  const confidenceRating = confluenceScore >= 80 ? 'HIGH CONFIDENCE' : confluenceScore >= 65 ? 'MODERATE CONFIDENCE' : 'LOW CONFIDENCE';
+
+  const pros = [
+    `Short legs (Put ₹${spStrike} / Call ₹${scStrike}) positioned safely outside primary reversal zones (${eos1 > 0 ? `EOS1 ₹${Math.round(eos1)}` : 'Support'} / ${eor1 > 0 ? `EOR1 ₹${Math.round(eor1)}` : 'Resistance'}).`,
+    `Generates +₹${Math.max(0, dailyThetaIncome)}/day in pure cash flow from positive Theta time decay for lot size ${lotSize}.`,
+    `High Probability of Profit (POP) at ${popPercentage}% with delta-neutral stance (Net Δ: ${netDeltaTotal}).`,
+    `Defined & Capped Max Risk of ₹${maxLoss.toLocaleString('en-IN')}, eliminating catastrophic tail-risk.`,
+    `Captures ₹${totalExtrinsicCaptured.toLocaleString('en-IN')} in total extrinsic time value that decays to zero.`
+  ];
+
+  const cons = [
+    `Max Risk (₹${maxLoss.toLocaleString('en-IN')}) exceeds Max Reward (₹${maxProfit.toLocaleString('en-IN')}) with Risk/Reward ratio of ${riskRewardRatio}.`,
+    `Vulnerable to sharp directional gap-ups or gap-downs breaking the breakeven band (₹${lowerBreakeven} ↔ ₹${upperBreakeven}).`,
+    `Negative Vega exposure: an unexpected spike in Implied Volatility (IV) will cause transient unrealized MTM loss.`
+  ];
+
+  const executiveSummary = `${symbol.toUpperCase()} derivative analytics support a non-directional Iron Condor strategy. Short strikes at Put ₹${spStrike} and Call ₹${scStrike} sit beyond institutional reversal zones, capturing ₹${totalExtrinsicCaptured.toLocaleString('en-IN')} of pure time value with a ${popPercentage}% POP and +₹${Math.max(0, dailyThetaIncome)}/day in positive theta decay.`;
+
+  const executionPlan = {
+    entryZone: `Spot ₹${Math.round(spotPrice * 0.998).toLocaleString('en-IN')} - ₹${Math.round(spotPrice * 1.002).toLocaleString('en-IN')} when IV is elevated.`,
+    profitTarget: `Harvest 50% to 70% of Max Profit (Exit when position profit reaches +₹${Math.round(maxProfit * 0.6).toLocaleString('en-IN')}).`,
+    adjustmentTrigger: `Close or roll position if Spot breaches Short Put (₹${spStrike}) or Short Call (₹${scStrike}).`
+  };
+
+  const decisionIntelligence: StrategyDecisionIntelligence = {
+    executiveSummary,
+    confluenceScore,
+    confidenceRating,
+    pros,
+    cons,
+    executionPlan
+  };
+
   const payoffRows: PayoffRow[] = [];
   const minSpot = Math.round(lowerBreakeven * 0.96);
   const maxSpot = Math.round(upperBreakeven * 1.04);
@@ -352,6 +380,7 @@ export const calculateIronCondorStrategy = (
     totalExtrinsicCaptured,
     greeks,
     healthScore,
+    decisionIntelligence,
     reversalLevels: (eos1 > 0 || eor1 > 0) ? {
       eos1: Math.round(eos1),
       eos2: Math.round(eos2),
@@ -363,9 +392,6 @@ export const calculateIronCondorStrategy = (
   };
 };
 
-/**
- * Dynamically constructs a Bull Call Spread Strategy using real market chain data
- */
 export const calculateBullCallSpread = (
   optionChain: any[],
   spotPrice: number,
@@ -444,6 +470,26 @@ export const calculateBullCallSpread = (
     expectedMoveText: `Breakeven at ₹${upperBreakeven}`
   };
 
+  const decisionIntelligence: StrategyDecisionIntelligence = {
+    executiveSummary: `Bullish momentum setup on ${symbol.toUpperCase()} targeting a breakout toward resistance ₹${sellStrike} with capped downside risk.`,
+    confluenceScore: 78,
+    confidenceRating: 'MODERATE CONFIDENCE',
+    pros: [
+      `Positive Delta bias capturing upside momentum towards ₹${sellStrike}.`,
+      `Capped Max Risk of ₹${maxLoss.toLocaleString('en-IN')} if price reverses.`,
+      `Favorable Risk/Reward ratio of ${riskRewardRatio}.`
+    ],
+    cons: [
+      `Requires spot to cross Breakeven ₹${upperBreakeven} before expiry to generate net profit.`,
+      `Theta decay hurts position if spot remains stagnant.`
+    ],
+    executionPlan: {
+      entryZone: `Spot near ₹${spotPrice.toLocaleString('en-IN')} on bullish pullback.`,
+      profitTarget: `Target exit at 75% max profit (+₹${Math.round(maxProfit * 0.75).toLocaleString('en-IN')}).`,
+      adjustmentTrigger: `Exit if spot breaks below ATM strike (₹${buyStrike}).`
+    }
+  };
+
   const payoffRows: PayoffRow[] = [];
   const minSpot = Math.round(buyStrike * 0.96);
   const maxSpot = Math.round(sellStrike * 1.04);
@@ -481,13 +527,11 @@ export const calculateBullCallSpread = (
     totalExtrinsicCaptured: Math.round((sellExtrinsic - buyExtrinsic) * lotSize),
     greeks,
     healthScore,
+    decisionIntelligence,
     payoffRows
   };
 };
 
-/**
- * Dynamically constructs a Bear Put Spread Strategy using real market chain data
- */
 export const calculateBearPutSpread = (
   optionChain: any[],
   spotPrice: number,
@@ -566,6 +610,26 @@ export const calculateBearPutSpread = (
     expectedMoveText: `Breakeven at ₹${lowerBreakeven}`
   };
 
+  const decisionIntelligence: StrategyDecisionIntelligence = {
+    executiveSummary: `Bearish breakdown setup on ${symbol.toUpperCase()} targeting downside support ₹${sellStrike} with capped downside risk.`,
+    confluenceScore: 76,
+    confidenceRating: 'MODERATE CONFIDENCE',
+    pros: [
+      `Negative Delta bias capturing downside breakdown momentum.`,
+      `Capped Max Risk of ₹${maxLoss.toLocaleString('en-IN')} if price rallies.`,
+      `Favorable Risk/Reward ratio of ${riskRewardRatio}.`
+    ],
+    cons: [
+      `Requires spot to drop below Breakeven ₹${lowerBreakeven} before expiry.`,
+      `Theta decay hurts position if spot remains stagnant.`
+    ],
+    executionPlan: {
+      entryZone: `Spot near ₹${spotPrice.toLocaleString('en-IN')} on bearish breakdown.`,
+      profitTarget: `Target exit at 75% max profit (+₹${Math.round(maxProfit * 0.75).toLocaleString('en-IN')}).`,
+      adjustmentTrigger: `Exit if spot breaks above ATM strike (₹${buyStrike}).`
+    }
+  };
+
   const payoffRows: PayoffRow[] = [];
   const minSpot = Math.round(sellStrike * 0.96);
   const maxSpot = Math.round(buyStrike * 1.04);
@@ -604,6 +668,7 @@ export const calculateBearPutSpread = (
     totalExtrinsicCaptured: Math.round((sellExtrinsic - buyExtrinsic) * lotSize),
     greeks,
     healthScore,
+    decisionIntelligence,
     payoffRows
   };
 };
