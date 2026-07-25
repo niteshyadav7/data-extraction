@@ -176,7 +176,8 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
   useEffect(() => {
     if (currentView !== 'DASHBOARD') {
       let activeId = 'sec-strategy';
-      if (currentView === 'LTP_STRATEGY') activeId = 'sec-ltp-strategy';
+      if (currentView === 'LTP_CALCULATOR') activeId = 'sec-ltp';
+      else if (currentView === 'LTP_STRATEGY') activeId = 'sec-ltp-strategy';
       else if (currentView === 'IRON_CONDOR') activeId = 'sec-iron-condor';
       else if (currentView === 'IRON_BUTTERFLY') activeId = 'sec-iron-butterfly';
       else if (currentView === 'BULL_PUT_CREDIT') activeId = 'sec-bull-put-credit';
@@ -185,13 +186,15 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
       else if (currentView === 'RATIO_PUT_SPREAD') activeId = 'sec-ratio-put-spread';
       else if (currentView === 'CALENDAR_SPREAD') activeId = 'sec-calendar-spread';
 
+      const isLtpEngine = currentView === 'LTP_CALCULATOR' || currentView === 'LTP_STRATEGY';
+
       setCurrentActive(activeId);
       setOpenCategories({
         'OVERVIEW': false,
         'DERIVATIVES': false,
-        'LTP ENGINE': currentView === 'LTP_STRATEGY',
+        'LTP ENGINE': isLtpEngine,
         'QUANT TOOLS': false,
-        'QUANT STRATEGIES': currentView !== 'LTP_STRATEGY'
+        'QUANT STRATEGIES': !isLtpEngine
       });
       return;
     }
