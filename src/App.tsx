@@ -43,9 +43,10 @@ export function App() {
   const [selectedSymbol, setSelectedSymbol] = useState<string>('NIFTY');
   const [selectedType, setSelectedType] = useState<'INDEX' | 'STOCK'>('INDEX');
 
-  // Clean file upload state without pre-filled filenames
+  // Clean file upload state for 4 required CSV files
   const [filesState, setFilesState] = useState<UploadedFilesState>({
     optionChainFile: null,
+    nextExpiryOptionChainFile: null,
     futuresFile: null,
     optFile: null,
     missingFileError: null
@@ -71,7 +72,7 @@ export function App() {
     setSelectedType(type);
   };
 
-  const handleFileSelect = (type: 'optionChainFile' | 'futuresFile' | 'optFile', file: File | null) => {
+  const handleFileSelect = (type: 'optionChainFile' | 'nextExpiryOptionChainFile' | 'futuresFile' | 'optFile', file: File | null) => {
     setFilesState(prev => ({
       ...prev,
       [type]: file,
@@ -80,14 +81,14 @@ export function App() {
   };
 
   const handleBatchFilesSelect = (fileList: FileList) => {
-    let oc: File | null = filesState.optionChainFile;
+    const ocFiles: File[] = [];
     let fut: File | null = filesState.futuresFile;
     let opt: File | null = filesState.optFile;
 
     Array.from(fileList).forEach(file => {
       const name = file.name.toLowerCase();
-      if (name.includes('option-chain') || name.includes('ed-nifty') || name.includes('chain')) {
-        oc = file;
+      if (name.includes('option-chain') || name.includes('chain')) {
+        ocFiles.push(file);
       } else if (name.includes('fut')) {
         fut = file;
       } else if (name.includes('opt')) {
@@ -95,8 +96,21 @@ export function App() {
       }
     });
 
+    let nearOc: File | null = filesState.optionChainFile;
+    let nextOc: File | null = filesState.nextExpiryOptionChainFile;
+
+    if (ocFiles.length >= 2) {
+      ocFiles.sort((a, b) => a.name.localeCompare(b.name));
+      nearOc = ocFiles[0];
+      nextOc = ocFiles[1];
+    } else if (ocFiles.length === 1) {
+      if (!nearOc) nearOc = ocFiles[0];
+      else if (!nextOc) nextOc = ocFiles[0];
+    }
+
     setFilesState({
-      optionChainFile: oc,
+      optionChainFile: nearOc,
+      nextExpiryOptionChainFile: nextOc,
       futuresFile: fut,
       optFile: opt,
       missingFileError: null
@@ -105,27 +119,34 @@ export function App() {
 
   const processFiles = async () => {
     if (!filesState.optionChainFile) {
-      setFilesState(prev => ({ ...prev, missingFileError: 'option-chain.csv' }));
+      setFilesState(prev => ({ ...prev, missingFileError: '1. Near Expiry Option Chain CSV (1st Date)' }));
+      setMetrics(null);
+      return;
+    }
+    if (!filesState.nextExpiryOptionChainFile) {
+      setFilesState(prev => ({ ...prev, missingFileError: '2. Next Expiry Option Chain CSV (2nd Date)' }));
       setMetrics(null);
       return;
     }
     if (!filesState.futuresFile) {
-      setFilesState(prev => ({ ...prev, missingFileError: 'nse50_fut.csv' }));
+      setFilesState(prev => ({ ...prev, missingFileError: '3. NSE 50 Futures CSV' }));
       setMetrics(null);
       return;
     }
     if (!filesState.optFile) {
-      setFilesState(prev => ({ ...prev, missingFileError: 'nse50_opt.csv' }));
+      setFilesState(prev => ({ ...prev, missingFileError: '4. NSE 50 Options CSV' }));
       setMetrics(null);
       return;
     }
 
     try {
       const optionChainText = await filesState.optionChainFile.text();
+      const nextExpiryText = await filesState.nextExpiryOptionChainFile.text();
       const futuresText = await filesState.futuresFile.text();
       const optText = await filesState.optFile.text();
 
       const { data: optionChainData, warningsPartial } = parseOptionChainCsv(optionChainText);
+      const { data: nextExpiryData } = parseOptionChainCsv(nextExpiryText);
       const futuresData = parseFuturesCsv(futuresText);
       const optData = parseOptCsv(optText);
 
@@ -139,7 +160,8 @@ export function App() {
         optData,
         warningsPartial,
         freshHv,
-        riskFreeRate
+        riskFreeRate,
+        nextExpiryData
       );
 
       setMetrics(calculated);
@@ -387,6 +409,7 @@ export function App() {
     setSelectedType('INDEX');
     setFilesState({
       optionChainFile: null,
+      nextExpiryOptionChainFile: null,
       futuresFile: null,
       optFile: null,
       missingFileError: null
@@ -515,6 +538,7 @@ export function App() {
           ) : currentView === 'CALENDAR_SPREAD' ? (
             <StrategyHubSection
               optionChain={metrics?.completeChain || []}
+              nextExpiryOptionChain={metrics?.nextExpiryChain}
               currentSpot={metrics?.marketSummary.spotPrice || 0}
               selectedSymbol={selectedSymbol}
               supportResistance={metrics?.supportResistance}
@@ -526,6 +550,7 @@ export function App() {
           ) : currentView === 'STRATEGY_HUB' ? (
             <StrategyHubSection
               optionChain={metrics?.completeChain || []}
+              nextExpiryOptionChain={metrics?.nextExpiryChain}
               currentSpot={metrics?.marketSummary.spotPrice || 0}
               selectedSymbol={selectedSymbol}
               supportResistance={metrics?.supportResistance}

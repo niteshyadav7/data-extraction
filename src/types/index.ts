@@ -52,6 +52,7 @@ export interface RawOptRow {
 
 export interface UploadedFilesState {
   optionChainFile: File | null;
+  nextExpiryOptionChainFile: File | null;
   futuresFile: File | null;
   optFile: File | null;
   missingFileError: string | null;
@@ -320,6 +321,7 @@ export interface DashboardMetrics {
   hvVsIv: HvVsIvData;
   mostActive: MostActiveData;
   completeChain: CompleteChainRow[];
+  nextExpiryChain?: CompleteChainRow[];
   warnings: DataWarnings;
   riskFreeRate: number;
 }

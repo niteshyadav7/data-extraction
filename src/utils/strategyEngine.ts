@@ -1364,7 +1364,8 @@ export const calculateCalendarSpreadStrategy = (
   optionChain: any[],
   spotPrice: number,
   symbol: string = 'NIFTY',
-  customLotSize?: number
+  customLotSize?: number,
+  nextExpiryOptionChain?: any[]
 ): StrategyResult | null => {
   if (!optionChain || optionChain.length < 5 || spotPrice <= 0) return null;
 
@@ -1386,26 +1387,39 @@ export const calculateCalendarSpreadStrategy = (
   const atmStrike = atmRow.strikePrice || atmRow.strike;
 
   const nearCeLtp = atmRow.ceLtp || 0;
-  const farCeLtp = Math.round(nearCeLtp * 1.45 * 100) / 100;
-
   const nearCeDelta = atmRow.ceDelta !== undefined ? atmRow.ceDelta : 0.50;
-  const farCeDelta = 0.52;
-
   const nearCeTheta = atmRow.ceTheta !== undefined ? atmRow.ceTheta : -14;
-  const farCeTheta = -8;
-
   const nearCeVega = atmRow.ceVega !== undefined ? atmRow.ceVega : 12;
-  const farCeVega = 22;
-
   const nearCeGamma = atmRow.ceGamma !== undefined ? atmRow.ceGamma : 0.002;
-  const farCeGamma = 0.001;
+  const nearIv = atmRow.ceIv || 0;
+
+  // Use real Next Expiry CSV row if provided
+  let farCeLtp = Math.round(nearCeLtp * 1.45 * 100) / 100;
+  let farCeDelta = 0.52;
+  let farCeTheta = -8;
+  let farCeVega = 22;
+  let farCeGamma = 0.001;
+  let farIv = (nearIv || 0) + 1.5;
+
+  if (nextExpiryOptionChain && nextExpiryOptionChain.length > 0) {
+    const sortedNext = [...nextExpiryOptionChain].sort((a, b) => (a.strikePrice || a.strike) - (b.strikePrice || b.strike));
+    const farMatch = sortedNext.find(r => (r.strikePrice || r.strike) === atmStrike) || sortedNext[0];
+    if (farMatch) {
+      if (farMatch.ceLtp > 0) farCeLtp = farMatch.ceLtp;
+      if (farMatch.ceDelta !== undefined) farCeDelta = farMatch.ceDelta;
+      if (farMatch.ceTheta !== undefined) farCeTheta = farMatch.ceTheta;
+      if (farMatch.ceVega !== undefined) farCeVega = farMatch.ceVega;
+      if (farMatch.ceGamma !== undefined) farCeGamma = farMatch.ceGamma;
+      if (farMatch.ceIv > 0) farIv = farMatch.ceIv;
+    }
+  }
 
   const nearExtrinsic = Math.max(0, nearCeLtp - Math.max(0, spotPrice - atmStrike));
   const farExtrinsic = Math.max(0, farCeLtp - Math.max(0, spotPrice - atmStrike));
 
   const legs: StrategyLeg[] = [
-    { action: 'SELL', optionType: 'CE', strike: atmStrike, ltp: nearCeLtp, delta: nearCeDelta, gamma: nearCeGamma, theta: nearCeTheta, vega: nearCeVega, iv: atmRow.ceIv || 0, extrinsicValue: nearExtrinsic, role: 'Short 1x Near-Expiry Call (Rapid Theta Decay)' },
-    { action: 'BUY', optionType: 'CE', strike: atmStrike, ltp: farCeLtp, delta: farCeDelta, gamma: farCeGamma, theta: farCeTheta, vega: farCeVega, iv: (atmRow.ceIv || 0) + 1.5, extrinsicValue: farExtrinsic, role: 'Long 1x Next-Expiry Call (Slow Theta / High Vega)' }
+    { action: 'SELL', optionType: 'CE', strike: atmStrike, ltp: nearCeLtp, delta: nearCeDelta, gamma: nearCeGamma, theta: nearCeTheta, vega: nearCeVega, iv: nearIv, extrinsicValue: nearExtrinsic, role: 'Short 1x Near-Expiry Call (Rapid Theta Decay)' },
+    { action: 'BUY', optionType: 'CE', strike: atmStrike, ltp: farCeLtp, delta: farCeDelta, gamma: farCeGamma, theta: farCeTheta, vega: farCeVega, iv: farIv, extrinsicValue: farExtrinsic, role: 'Long 1x Next-Expiry Call (Real Far-Leg LTP)' }
   ];
 
   const netDebitPerShare = Math.max(0, Math.round((farCeLtp - nearCeLtp) * 100) / 100);

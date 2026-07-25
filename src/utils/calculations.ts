@@ -48,7 +48,8 @@ export const calculateDashboardMetrics = (
   _optData: RawOptRow[],
   warningsPartial: Partial<DataWarnings> = {},
   hvData?: HistoricalVolatilityData,
-  riskFreeRatePercent: number = 5.25
+  riskFreeRatePercent: number = 5.25,
+  nextExpiryOptionChainData?: RawOptionChainRow[]
 ): DashboardMetrics => {
   const r = riskFreeRatePercent / 100;
 
@@ -522,6 +523,45 @@ export const calculateDashboardMetrics = (
     negativeVolumeCount: negativeVolumeList.length
   };
 
+  // 13. Process Next Expiry Chain if provided
+  let nextExpiryChain: CompleteChainRow[] | undefined;
+  if (nextExpiryOptionChainData && nextExpiryOptionChainData.length > 0) {
+    const sortedNext = [...nextExpiryOptionChainData].sort((a, b) => a.strikePrice - b.strikePrice);
+    const nextDaysToExpiry = Math.max(7, daysToExpiry + 7);
+    const nextT = Math.max(nextDaysToExpiry, 1.0) / 365.0;
+
+    nextExpiryChain = sortedNext.map(rRow => {
+      const ceSigma = (rRow.ceIv > 0 ? rRow.ceIv : (atmIv > 0 ? atmIv : 14.0)) / 100.0;
+      const peSigma = (rRow.peIv > 0 ? rRow.peIv : (atmIv > 0 ? atmIv : 14.0)) / 100.0;
+
+      const ceGreeks = calculateBlackScholesGreeks(spotPrice, rRow.strikePrice, nextT, r, ceSigma, 'CE');
+      const peGreeks = calculateBlackScholesGreeks(spotPrice, rRow.strikePrice, nextT, r, peSigma, 'PE');
+
+      return {
+        strike: rRow.strikePrice,
+        isAtm: rRow.strikePrice === atmStrike,
+        ceOi: rRow.ceOi,
+        ceChgOi: rRow.ceChgOi,
+        ceVolume: rRow.ceVolume,
+        ceIv: rRow.ceIv,
+        ceLtp: rRow.ceLtp,
+        ceDelta: ceGreeks.delta,
+        ceGamma: ceGreeks.gamma,
+        ceTheta: ceGreeks.theta,
+        ceVega: ceGreeks.vega,
+        peLtp: rRow.peLtp,
+        peIv: rRow.peIv,
+        peVolume: rRow.peVolume,
+        peChgOi: rRow.peChgOi,
+        peOi: rRow.peOi,
+        peDelta: peGreeks.delta,
+        peGamma: peGreeks.gamma,
+        peTheta: peGreeks.theta,
+        peVega: peGreeks.vega
+      };
+    });
+  }
+
   return {
     marketSummary,
     chainSummary,
@@ -538,6 +578,7 @@ export const calculateDashboardMetrics = (
     hvVsIv,
     mostActive,
     completeChain,
+    nextExpiryChain,
     warnings,
     riskFreeRate: riskFreeRatePercent
   };

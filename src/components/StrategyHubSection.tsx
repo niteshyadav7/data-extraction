@@ -29,6 +29,7 @@ import {
 
 interface StrategyHubSectionProps {
   optionChain: any[];
+  nextExpiryOptionChain?: any[];
   currentSpot: number;
   selectedSymbol?: string;
   supportResistance?: any;
@@ -40,6 +41,7 @@ interface StrategyHubSectionProps {
 
 export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
   optionChain,
+  nextExpiryOptionChain,
   currentSpot,
   selectedSymbol = 'NIFTY',
   supportResistance,
@@ -154,7 +156,8 @@ export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
       optionChain,
       currentSpot,
       selectedSymbol,
-      lotSize
+      lotSize,
+      nextExpiryOptionChain
     );
   } else if (activeTab === 'BULL_CALL') {
     result = calculateBullCallSpread(optionChain, currentSpot, selectedSymbol, lotSize);

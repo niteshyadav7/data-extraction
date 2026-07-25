@@ -4,7 +4,7 @@ import type { UploadedFilesState } from '../types';
 
 interface FileUploadProps {
   filesState: UploadedFilesState;
-  onFileSelect: (type: 'optionChainFile' | 'futuresFile' | 'optFile', file: File | null) => void;
+  onFileSelect: (type: 'optionChainFile' | 'nextExpiryOptionChainFile' | 'futuresFile' | 'optFile', file: File | null) => void;
   onBatchFilesSelect: (files: FileList) => void;
   onProcessFiles: () => void;
 }
@@ -18,28 +18,35 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   const fileConfigs = [
     {
       key: 'optionChainFile' as const,
-      placeholder: 'Select Option Chain CSV',
-      label: '1. Option Chain CSV',
-      desc: 'e.g. option-chain-ED-NIFTY-*.csv or option-chain.csv',
+      placeholder: 'Select Near Expiry Option Chain CSV',
+      label: '1. Near Expiry Option Chain CSV',
+      desc: '1st Date (e.g. option-chain-ED-NIFTY-28-Jul-2026.csv)',
       file: filesState.optionChainFile,
+    },
+    {
+      key: 'nextExpiryOptionChainFile' as const,
+      placeholder: 'Select Next Expiry Option Chain CSV',
+      label: '2. Next Expiry Option Chain CSV',
+      desc: '2nd Date (e.g. option-chain-ED-NIFTY-04-Aug-2026.csv)',
+      file: filesState.nextExpiryOptionChainFile,
     },
     {
       key: 'futuresFile' as const,
       placeholder: 'Select NSE 50 Futures CSV',
-      label: '2. NSE 50 Futures CSV',
+      label: '3. NSE 50 Futures CSV',
       desc: 'e.g. MW-FO-nse50_fut-*.csv or nse50_fut.csv',
       file: filesState.futuresFile,
     },
     {
       key: 'optFile' as const,
       placeholder: 'Select NSE 50 Options CSV',
-      label: '3. NSE 50 Options CSV',
+      label: '4. NSE 50 Options CSV',
       desc: 'e.g. MW-FO-nse50_opt-*.csv or nse50_opt.csv',
       file: filesState.optFile,
     },
   ];
 
-  const allUploaded = filesState.optionChainFile && filesState.futuresFile && filesState.optFile;
+  const allUploaded = filesState.optionChainFile && filesState.nextExpiryOptionChainFile && filesState.futuresFile && filesState.optFile;
 
   return (
     <div className="card" style={{ marginBottom: '24px' }}>
@@ -50,7 +57,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
             Step 1: Upload Real Market CSV Files
           </h2>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            Select or drag & drop your 3 real NSE market CSV files to calculate derivative analytics.
+            Select or drag & drop your 4 real NSE market CSV files (Near Expiry + Next Expiry + Futures + Options) to calculate derivative analytics.
           </p>
         </div>
 
@@ -69,7 +76,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
           />
           <label htmlFor="batch-upload-input" className="btn-secondary" style={{ cursor: 'pointer' }}>
             <UploadCloud size={16} />
-            Upload All 3 Files Together
+            Upload All 4 Files Together
           </label>
         </div>
       </div>
