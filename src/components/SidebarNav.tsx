@@ -48,6 +48,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
   const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({
     'OVERVIEW': true,
     'DERIVATIVES': false,
+    'LTP ENGINE': false,
     'QUANT TOOLS': false,
     'QUANT STRATEGIES': false
   });
@@ -58,6 +59,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
       setOpenCategories({
         'OVERVIEW': false,
         'DERIVATIVES': false,
+        'LTP ENGINE': false,
         'QUANT TOOLS': false,
         'QUANT STRATEGIES': false
       });
@@ -73,6 +75,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
       setOpenCategories({
         'OVERVIEW': title === 'OVERVIEW',
         'DERIVATIVES': title === 'DERIVATIVES',
+        'LTP ENGINE': title === 'LTP ENGINE',
         'QUANT TOOLS': title === 'QUANT TOOLS',
         'QUANT STRATEGIES': title === 'QUANT STRATEGIES'
       });
@@ -100,12 +103,18 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
       ]
     },
     {
-      title: 'QUANT TOOLS',
+      title: 'LTP ENGINE',
       categoryIcon: Calculator,
       items: [
-        { id: 'sec-chain', label: 'Option Chain', icon: Table, iconColor: '#16A085' },
         { id: 'sec-ltp', label: 'LTP Calculator', icon: Calculator, iconColor: '#34495E', badge: 'Step 18' },
         { id: 'sec-ltp-strategy', label: 'LTP Strategy Studio', icon: Target, iconColor: '#C5A059', badge: 'Reversal', isViewSwitch: true, viewName: 'LTP_STRATEGY' },
+      ]
+    },
+    {
+      title: 'QUANT TOOLS',
+      categoryIcon: Table,
+      items: [
+        { id: 'sec-chain', label: 'Option Chain', icon: Table, iconColor: '#16A085' },
         { id: 'sec-warnings', label: 'Audit Warnings', icon: AlertTriangle, iconColor: '#E67E22' },
       ]
     },
@@ -130,6 +139,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
     setOpenCategories({
       'OVERVIEW': catTitle === 'OVERVIEW',
       'DERIVATIVES': catTitle === 'DERIVATIVES',
+      'LTP ENGINE': catTitle === 'LTP ENGINE',
       'QUANT TOOLS': catTitle === 'QUANT TOOLS',
       'QUANT STRATEGIES': catTitle === 'QUANT STRATEGIES'
     });
@@ -166,7 +176,8 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
   useEffect(() => {
     if (currentView !== 'DASHBOARD') {
       let activeId = 'sec-strategy';
-      if (currentView === 'IRON_CONDOR') activeId = 'sec-iron-condor';
+      if (currentView === 'LTP_STRATEGY') activeId = 'sec-ltp-strategy';
+      else if (currentView === 'IRON_CONDOR') activeId = 'sec-iron-condor';
       else if (currentView === 'IRON_BUTTERFLY') activeId = 'sec-iron-butterfly';
       else if (currentView === 'BULL_PUT_CREDIT') activeId = 'sec-bull-put-credit';
       else if (currentView === 'BEAR_CALL_CREDIT') activeId = 'sec-bear-call-credit';
@@ -178,8 +189,9 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
       setOpenCategories({
         'OVERVIEW': false,
         'DERIVATIVES': false,
+        'LTP ENGINE': currentView === 'LTP_STRATEGY',
         'QUANT TOOLS': false,
-        'QUANT STRATEGIES': true
+        'QUANT STRATEGIES': currentView !== 'LTP_STRATEGY'
       });
       return;
     }
@@ -199,6 +211,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
               setOpenCategories({
                 'OVERVIEW': cat.title === 'OVERVIEW',
                 'DERIVATIVES': cat.title === 'DERIVATIVES',
+                'LTP ENGINE': cat.title === 'LTP ENGINE',
                 'QUANT TOOLS': cat.title === 'QUANT TOOLS',
                 'QUANT STRATEGIES': cat.title === 'QUANT STRATEGIES'
               });
