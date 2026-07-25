@@ -1,18 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { Layers, TrendingUp, TrendingDown, Target, Award, AlertCircle } from 'lucide-react';
-import { calculateIronCondorStrategy, getDefaultLotSizeForSymbol } from '../utils/strategyEngine';
+import { Layers, TrendingUp, TrendingDown, Target, Award, AlertCircle, ArrowLeft } from 'lucide-react';
+import {
+  calculateIronCondorStrategy,
+  calculateBullCallSpread,
+  calculateBearPutSpread,
+  getDefaultLotSizeForSymbol,
+  type StrategyResult
+} from '../utils/strategyEngine';
 
 interface StrategyHubSectionProps {
   optionChain: any[];
   currentSpot: number;
   selectedSymbol?: string;
+  onBackToDashboard?: () => void;
 }
 
 export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
   optionChain,
   currentSpot,
-  selectedSymbol = 'NIFTY'
+  selectedSymbol = 'NIFTY',
+  onBackToDashboard
 }) => {
+  const [activeTab, setActiveTab] = useState<'IRON_CONDOR' | 'BULL_CALL' | 'BEAR_PUT'>('IRON_CONDOR');
   const [lotSize, setLotSize] = useState<number>(getDefaultLotSizeForSymbol(selectedSymbol));
   const [wingWidth, setWingWidth] = useState<number>(2);
 
@@ -24,6 +33,18 @@ export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
   if (!optionChain || optionChain.length < 5 || currentSpot <= 0) {
     return (
       <div className="card" style={{ marginBottom: '24px', width: '100%', padding: '24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+          {onBackToDashboard && (
+            <button
+              onClick={onBackToDashboard}
+              className="btn-secondary"
+              style={{ fontSize: '0.82rem', padding: '6px 12px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            >
+              <ArrowLeft size={16} /> Back to Main Dashboard
+            </button>
+          )}
+        </div>
+
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--color-red)' }}>
           <AlertCircle size={24} />
           <div>
@@ -37,34 +58,112 @@ export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
     );
   }
 
-  const result = calculateIronCondorStrategy(optionChain, currentSpot, selectedSymbol, lotSize, wingWidth);
+  let result: StrategyResult | null = null;
+  if (activeTab === 'IRON_CONDOR') {
+    result = calculateIronCondorStrategy(optionChain, currentSpot, selectedSymbol, lotSize, wingWidth);
+  } else if (activeTab === 'BULL_CALL') {
+    result = calculateBullCallSpread(optionChain, currentSpot, selectedSymbol, lotSize);
+  } else if (activeTab === 'BEAR_PUT') {
+    result = calculateBearPutSpread(optionChain, currentSpot, selectedSymbol, lotSize);
+  }
 
   if (!result) return null;
 
   return (
     <div className="card" style={{ marginBottom: '24px', width: '100%' }}>
-      {/* Strategy Header */}
+      {/* Back Button & Header */}
       <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '16px', marginBottom: '20px' }}>
+        {onBackToDashboard && (
+          <button
+            onClick={onBackToDashboard}
+            className="btn-secondary"
+            style={{ fontSize: '0.82rem', padding: '6px 14px', marginBottom: '16px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+          >
+            <ArrowLeft size={16} /> ← Back to Main Dashboard Overview
+          </button>
+        )}
+
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
           <div>
-            <h2 style={{ fontSize: '1.2rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <Layers size={22} color="var(--accent-gold)" />
-              Step 19: Quantitative Strategy Hub & Payoff Simulator ({selectedSymbol.toUpperCase()})
+            <h2 style={{ fontSize: '1.3rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <Layers size={24} color="var(--accent-gold)" />
+              Quantitative Strategy Studio & Payoff Simulator ({selectedSymbol.toUpperCase()})
             </h2>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-              100% dynamic strategy recommendations calculated from active live market chain for <strong>{selectedSymbol.toUpperCase()}</strong>.
+              Dedicated strategy view calculated live from active market chain data for <strong>{selectedSymbol.toUpperCase()}</strong>.
             </p>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: 700, padding: '4px 10px', borderRadius: '6px', backgroundColor: '#E2F0E5', color: 'var(--color-green)', border: '1px solid var(--color-green)' }}>
-              🟢 STRATEGY: IRON CONDOR ({selectedSymbol.toUpperCase()})
-            </span>
+          <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-main)', backgroundColor: 'var(--bg-main)', padding: '6px 14px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+            Spot: <strong>₹{currentSpot.toLocaleString('en-IN')}</strong>
           </div>
         </div>
       </div>
 
-      {/* Controls Bar: Lot Size & Wing Width */}
+      {/* Multi-Strategy Navigation Tabs */}
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '24px', flexWrap: 'wrap' }}>
+        <button
+          onClick={() => setActiveTab('IRON_CONDOR')}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '10px 18px',
+            borderRadius: '8px',
+            fontSize: '0.88rem',
+            fontWeight: 700,
+            cursor: 'pointer',
+            backgroundColor: activeTab === 'IRON_CONDOR' ? 'var(--accent-gold)' : 'var(--bg-main)',
+            color: activeTab === 'IRON_CONDOR' ? '#FFF' : 'var(--text-main)',
+            border: `1.5px solid ${activeTab === 'IRON_CONDOR' ? 'var(--accent-gold)' : 'var(--border-color)'}`,
+            transition: 'all 0.15s ease'
+          }}
+        >
+          <Layers size={16} /> 🟢 Iron Condor (Neutral Income)
+        </button>
+
+        <button
+          onClick={() => setActiveTab('BULL_CALL')}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '10px 18px',
+            borderRadius: '8px',
+            fontSize: '0.88rem',
+            fontWeight: 700,
+            cursor: 'pointer',
+            backgroundColor: activeTab === 'BULL_CALL' ? 'var(--color-green)' : 'var(--bg-main)',
+            color: activeTab === 'BULL_CALL' ? '#FFF' : 'var(--text-main)',
+            border: `1.5px solid ${activeTab === 'BULL_CALL' ? 'var(--color-green)' : 'var(--border-color)'}`,
+            transition: 'all 0.15s ease'
+          }}
+        >
+          <TrendingUp size={16} /> 📈 Bull Call Spread (Bullish Breakout)
+        </button>
+
+        <button
+          onClick={() => setActiveTab('BEAR_PUT')}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '10px 18px',
+            borderRadius: '8px',
+            fontSize: '0.88rem',
+            fontWeight: 700,
+            cursor: 'pointer',
+            backgroundColor: activeTab === 'BEAR_PUT' ? 'var(--color-red)' : 'var(--bg-main)',
+            color: activeTab === 'BEAR_PUT' ? '#FFF' : 'var(--text-main)',
+            border: `1.5px solid ${activeTab === 'BEAR_PUT' ? 'var(--color-red)' : 'var(--border-color)'}`,
+            transition: 'all 0.15s ease'
+          }}
+        >
+          <TrendingDown size={16} /> 📉 Bear Put Spread (Bearish Breakdown)
+        </button>
+      </div>
+
+      {/* Controls Bar: Lot Size & Options */}
       <div style={{
         backgroundColor: 'var(--bg-main)',
         borderRadius: '10px',
@@ -98,33 +197,31 @@ export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
           />
         </div>
 
-        {/* Wing Protection Width */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)' }}>
-            Wing Protection Width:
-          </span>
-          <select
-            value={wingWidth}
-            onChange={(e) => setWingWidth(parseInt(e.target.value) || 2)}
-            style={{
-              padding: '6px 12px',
-              borderRadius: '6px',
-              border: '1.5px solid var(--border-color)',
-              backgroundColor: '#FFF',
-              fontSize: '0.85rem',
-              fontWeight: 700,
-              cursor: 'pointer'
-            }}
-          >
-            <option value={1}>1 Strike Width (Tight Risk)</option>
-            <option value={2}>2 Strikes Width (Standard)</option>
-            <option value={3}>3 Strikes Width (Wide Protection)</option>
-          </select>
-        </div>
-
-        <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-          {selectedSymbol.toUpperCase()} Spot: <strong>₹{currentSpot.toLocaleString('en-IN')}</strong>
-        </div>
+        {/* Wing Protection Width (Iron Condor only) */}
+        {activeTab === 'IRON_CONDOR' && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)' }}>
+              Wing Protection Width:
+            </span>
+            <select
+              value={wingWidth}
+              onChange={(e) => setWingWidth(parseInt(e.target.value) || 2)}
+              style={{
+                padding: '6px 12px',
+                borderRadius: '6px',
+                border: '1.5px solid var(--border-color)',
+                backgroundColor: '#FFF',
+                fontSize: '0.85rem',
+                fontWeight: 700,
+                cursor: 'pointer'
+              }}
+            >
+              <option value={1}>1 Strike Width (Tight Risk)</option>
+              <option value={2}>2 Strikes Width (Standard)</option>
+              <option value={3}>3 Strikes Width (Wide Protection)</option>
+            </select>
+          </div>
+        )}
       </div>
 
       {/* Strategy Summary Metric Cards */}
@@ -137,13 +234,13 @@ export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
         {/* Card 1: Max Profit */}
         <div style={{ backgroundColor: '#E2F0E5', border: '1.5px solid var(--color-green)', borderRadius: '8px', padding: '16px' }}>
           <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-green)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <TrendingUp size={16} /> MAX PROFIT (NET CREDIT)
+            <TrendingUp size={16} /> MAX PROFIT POTENTIAL
           </div>
           <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--color-green)', marginTop: '4px' }}>
             +₹{result.maxProfit.toLocaleString('en-IN')}
           </div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-            ₹{result.netCreditPerShare.toFixed(2)} / share (Lot Size {result.lotSize})
+            Lot Size: {result.lotSize} contracts
           </div>
         </div>
 
@@ -160,16 +257,16 @@ export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
           </div>
         </div>
 
-        {/* Card 3: Breakeven Range */}
+        {/* Card 3: Breakeven Points */}
         <div style={{ backgroundColor: '#EBF5FB', border: '1.5px solid #85C1E9', borderRadius: '8px', padding: '16px' }}>
           <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#1B4F72', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Target size={16} /> BREAKEVEN RANGE
+            <Target size={16} /> BREAKEVEN LEVEL
           </div>
           <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#1B4F72', marginTop: '4px' }}>
-            ₹{result.lowerBreakeven.toLocaleString('en-IN')} ↔ ₹{result.upperBreakeven.toLocaleString('en-IN')}
+            {result.lowerBreakeven ? `₹${result.lowerBreakeven.toLocaleString('en-IN')} ↔ ` : ''}₹{result.upperBreakeven.toLocaleString('en-IN')}
           </div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-            Profit Zone ({Math.round(result.upperBreakeven - result.lowerBreakeven)} pts)
+            Target Expiry Breakeven
           </div>
         </div>
 
@@ -187,10 +284,10 @@ export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
         </div>
       </div>
 
-      {/* Dynamic 4-Leg Order Matrix */}
+      {/* Dynamic Legs Order Matrix */}
       <div style={{ marginBottom: '24px' }}>
         <h3 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '10px', color: 'var(--text-main)' }}>
-          📋 Dynamic 4-Leg Order Execution Matrix ({selectedSymbol.toUpperCase()})
+          📋 Dynamic Strategy Legs Order Matrix ({selectedSymbol.toUpperCase()})
         </h3>
         <div className="table-container" style={{ width: '100%', overflowX: 'auto', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
           <table style={{ width: '100%', tableLayout: 'auto' }}>

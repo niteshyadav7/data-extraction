@@ -22,13 +22,21 @@ interface NavSection {
   icon: any;
   category?: string;
   badge?: string;
+  isViewSwitch?: boolean;
+  viewName?: 'DASHBOARD' | 'STRATEGY_HUB';
 }
 
 interface SidebarNavProps {
   activeSection?: string;
+  currentView?: 'DASHBOARD' | 'STRATEGY_HUB';
+  onSelectView?: (view: 'DASHBOARD' | 'STRATEGY_HUB', sectionId?: string) => void;
 }
 
-export const SidebarNav: React.FC<SidebarNavProps> = ({ activeSection = 'sec-summary' }) => {
+export const SidebarNav: React.FC<SidebarNavProps> = ({
+  activeSection = 'sec-summary',
+  currentView = 'DASHBOARD',
+  onSelectView
+}) => {
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
   const [currentActive, setCurrentActive] = useState<string>(activeSection);
 
@@ -50,15 +58,26 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ activeSection = 'sec-sum
       ]
     },
     {
-      title: 'QUANT TOOLS',
+      title: 'QUANT TOOLS & STRATEGIES',
       items: [
         { id: 'sec-chain', label: 'Option Chain', icon: Table },
         { id: 'sec-ltp', label: 'LTP Calculator', icon: Calculator, badge: 'Step 18' },
-        { id: 'sec-strategy', label: 'Strategy Hub', icon: Layers, badge: 'Next' },
+        { id: 'sec-strategy', label: 'Strategy Hub', icon: Layers, badge: 'Full Page', isViewSwitch: true, viewName: 'STRATEGY_HUB' },
         { id: 'sec-warnings', label: 'Audit Warnings', icon: AlertTriangle },
       ]
     }
   ];
+
+  const handleItemClick = (item: NavSection) => {
+    setCurrentActive(item.id);
+    if (item.isViewSwitch && item.viewName && onSelectView) {
+      onSelectView(item.viewName, item.id);
+    } else if (onSelectView) {
+      onSelectView('DASHBOARD', item.id);
+    } else {
+      scrollToSection(item.id);
+    }
+  };
 
   const scrollToSection = (id: string) => {
     setCurrentActive(id);
@@ -78,10 +97,16 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ activeSection = 'sec-sum
   };
 
   useEffect(() => {
+    if (currentView === 'STRATEGY_HUB') {
+      setCurrentActive('sec-strategy');
+      return;
+    }
+
     const handleScroll = () => {
       const scrollPosition = window.scrollY + 180;
       for (const cat of navCategories) {
         for (const item of cat.items) {
+          if (item.isViewSwitch) continue;
           const el = document.getElementById(item.id);
           if (el) {
             const top = el.offsetTop;
@@ -97,7 +122,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ activeSection = 'sec-sum
 
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  }, [currentView]);
 
   return (
     <aside
@@ -173,11 +198,11 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ activeSection = 'sec-sum
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               {cat.items.map((item) => {
                 const Icon = item.icon;
-                const isActive = currentActive === item.id;
+                const isActive = (currentView === 'STRATEGY_HUB' && item.id === 'sec-strategy') || (currentView === 'DASHBOARD' && currentActive === item.id);
                 return (
                   <button
                     key={item.id}
-                    onClick={() => scrollToSection(item.id)}
+                    onClick={() => handleItemClick(item)}
                     style={{
                       display: 'flex',
                       alignItems: 'center',

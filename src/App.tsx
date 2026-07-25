@@ -385,6 +385,24 @@ export function App() {
     setMetrics(null);
   };
 
+  const [currentView, setCurrentView] = useState<'DASHBOARD' | 'STRATEGY_HUB'>('DASHBOARD');
+
+  const handleSelectView = (view: 'DASHBOARD' | 'STRATEGY_HUB', sectionId?: string) => {
+    setCurrentView(view);
+    if (view === 'DASHBOARD' && sectionId) {
+      setTimeout(() => {
+        const el = document.getElementById(sectionId);
+        if (el) {
+          const offset = 90;
+          const bodyRect = document.body.getBoundingClientRect().top;
+          const elementRect = el.getBoundingClientRect().top;
+          const elementPosition = elementRect - bodyRect;
+          window.scrollTo({ top: elementPosition - offset, behavior: 'smooth' });
+        }
+      }, 50);
+    }
+  };
+
   return (
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg-main)' }}>
       <Header
@@ -396,9 +414,12 @@ export function App() {
 
       <div style={{ display: 'flex', width: '100%', minHeight: 'calc(100vh - 70px)' }}>
         {/* Collapsible Sidebar Navigation */}
-        <SidebarNav />
+        <SidebarNav
+          currentView={currentView}
+          onSelectView={handleSelectView}
+        />
 
-        {/* Main Dashboard Workspace Content */}
+        {/* Main Dashboard / Strategy Studio Workspace Content */}
         <main style={{ flex: 1, minWidth: 0, padding: '24px 28px' }}>
           <ConfigBar
             riskFreeRate={riskFreeRate}
@@ -416,12 +437,21 @@ export function App() {
             onManualLiveSync={() => fetchSymbolData(selectedSymbol, selectedType)}
           />
 
-          <FileUpload
-            filesState={filesState}
-            onFileSelect={handleFileSelect}
-            onBatchFilesSelect={handleBatchFilesSelect}
-            onProcessFiles={processFiles}
-          />
+          {currentView === 'STRATEGY_HUB' ? (
+            <StrategyHubSection
+              optionChain={metrics?.completeChain || []}
+              currentSpot={metrics?.marketSummary.spotPrice || 0}
+              selectedSymbol={selectedSymbol}
+              onBackToDashboard={() => setCurrentView('DASHBOARD')}
+            />
+          ) : (
+            <>
+              <FileUpload
+                filesState={filesState}
+                onFileSelect={handleFileSelect}
+                onBatchFilesSelect={handleBatchFilesSelect}
+                onProcessFiles={processFiles}
+              />
 
           {metrics && (
             <>
@@ -510,6 +540,8 @@ export function App() {
               </div>
             </>
           )}
+          </>
+        )}
         </main>
       </div>
     </div>
