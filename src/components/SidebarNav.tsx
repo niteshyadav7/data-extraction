@@ -334,8 +334,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: isCollapsed ? '0' : '4px' }}>
                   {cat.items.map((item) => {
                     const Icon = item.icon;
-                    const isActive = (currentView === 'IRON_CONDOR' && item.id === 'sec-iron-condor') ||
-                      (currentView === 'STRATEGY_HUB' && item.id === 'sec-strategy') ||
+                    const isActive = (item.isViewSwitch && item.viewName && currentView === item.viewName) ||
                       (currentView === 'DASHBOARD' && currentActive === item.id);
 
                     return (
