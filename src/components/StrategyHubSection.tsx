@@ -28,6 +28,7 @@ import {
 } from '../utils/strategyEngine';
 import { TradeAdjustmentEngine } from './TradeAdjustmentEngine';
 import { StrategyComparisonStudio } from './StrategyComparisonStudio';
+import { calculateLtpReversalStrategy } from '../utils/ltpStrategyEngine';
 
 interface StrategyHubSectionProps {
   optionChain: any[];
@@ -200,6 +201,9 @@ export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
 
   const decision = result.decisionIntelligence;
 
+  const ltpResult = calculateLtpReversalStrategy(optionChain, currentSpot, selectedSymbol, lotSize);
+  const noTradeStatus = ltpResult?.noTradeStatus;
+
   return (
     <div className="card" style={{ marginBottom: '24px', width: '100%' }}>
       {/* Back Button & Header */}
@@ -212,6 +216,54 @@ export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
           >
             <ArrowLeft size={16} /> ← Back to Main Dashboard Overview
           </button>
+        )}
+
+        {/* NO-TRADE DAY / TRADE PERMISSION BANNER */}
+        {noTradeStatus && (
+          <div style={{
+            marginBottom: '16px',
+            padding: '14px 18px',
+            borderRadius: '8px',
+            backgroundColor: noTradeStatus.isNoTradeDay ? '#FADBD8' : '#E2F0E5',
+            border: `2px solid ${noTradeStatus.isNoTradeDay ? 'var(--color-red)' : 'var(--color-green)'}`,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '12px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              {noTradeStatus.isNoTradeDay ? (
+                <AlertCircle size={24} color="var(--color-red)" style={{ flexShrink: 0 }} />
+              ) : (
+                <CheckCircle2 size={24} color="var(--color-green)" style={{ flexShrink: 0 }} />
+              )}
+              <div>
+                <div style={{
+                  fontSize: '1.05rem',
+                  fontWeight: 900,
+                  color: noTradeStatus.isNoTradeDay ? 'var(--color-red)' : 'var(--color-green)'
+                }}>
+                  {noTradeStatus.tradePermissionLabel}
+                </div>
+                <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-main)', marginTop: '2px' }}>
+                  {noTradeStatus.noTradeReason}
+                </div>
+              </div>
+            </div>
+
+            <div style={{
+              padding: '5px 12px',
+              borderRadius: '6px',
+              backgroundColor: 'var(--bg-main)',
+              border: `1.5px solid ${noTradeStatus.isNoTradeDay ? 'var(--color-red)' : 'var(--color-green)'}`,
+              fontWeight: 800,
+              fontSize: '0.75rem',
+              color: noTradeStatus.isNoTradeDay ? 'var(--color-red)' : 'var(--color-green)'
+            }}>
+              {noTradeStatus.isNoTradeDay ? '⚠️ CAPITAL PROTECTION MODE' : '✅ OPTIONAL TRADE DAY'}
+            </div>
+          </div>
         )}
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
