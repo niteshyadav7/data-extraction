@@ -19,6 +19,7 @@ import { HVvsIVSection } from './components/HVvsIVSection';
 import { MostActiveSection } from './components/MostActiveSection';
 import { CompleteOptionChain } from './components/CompleteOptionChain';
 import { LtpCalculatorSection } from './components/LtpCalculatorSection';
+import { StrategyHubSection } from './components/StrategyHubSection';
 import { WarningsSection } from './components/WarningsSection';
 
 import type {
@@ -491,6 +492,14 @@ export function App() {
                   currentSpot={metrics.marketSummary.spotPrice}
                   daysToExpiry={metrics.marketSummary.daysToExpiry}
                   riskFreeRate={metrics.riskFreeRate}
+                />
+              </div>
+
+              {/* Step 19: Quantitative Strategy Hub & Iron Condor Engine */}
+              <div id="sec-strategy">
+                <StrategyHubSection
+                  optionChain={metrics.completeChain}
+                  currentSpot={metrics.marketSummary.spotPrice}
                 />
               </div>
 
