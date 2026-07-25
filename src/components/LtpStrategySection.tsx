@@ -40,6 +40,7 @@ export const LtpStrategySection: React.FC<LtpStrategySectionProps> = ({
 
   const {
     strategyResult,
+    mode,
     eorCeilingStrike,
     eorReversalLevel,
     eosFloorStrike,
@@ -212,27 +213,27 @@ export const LtpStrategySection: React.FC<LtpStrategySectionProps> = ({
             +₹{res.maxProfit.toLocaleString('en-IN')}
           </div>
           <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-            {res.netCreditPerShare > 0 ? `Net Credit ₹${res.netCreditPerShare}/share` : `Net Debit ₹${res.netDebitPerShare}/share`} × {res.lotSize}
+            {mode.startsWith('OPTION_BUYING') ? `Buyer Reward/Risk: ${ltpStrategy.buyerRewardRiskRatioText}` : `Net Credit ₹${res.netCreditPerShare}/share × ${res.lotSize}`}
           </div>
         </div>
 
         <div className="card" style={{ borderLeft: '4px solid #8E44AD' }}>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '4px' }}>DAILY THETA IMPACT</div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '4px' }}>DAILY THETA & LEVERAGE</div>
           <div style={{ fontSize: '1.25rem', fontWeight: 800, color: res.greeks.dailyThetaIncome >= 0 ? '#8E44AD' : 'var(--color-red)' }}>
             {res.greeks.dailyThetaIncome >= 0 ? `+₹${res.greeks.dailyThetaIncome.toLocaleString('en-IN')}/day` : `-₹${Math.abs(res.greeks.dailyThetaIncome).toLocaleString('en-IN')}/day`}
           </div>
           <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-            {extrinsicHarvestEfficiencyPct}% Extrinsic Efficiency
+            {mode.startsWith('OPTION_BUYING') ? `${ltpStrategy.deltaThetaLeverageRatio} pts/day to beat Theta` : `${extrinsicHarvestEfficiencyPct}% Extrinsic Efficiency`}
           </div>
         </div>
 
         <div className="card" style={{ borderLeft: '4px solid #2980B9' }}>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '4px' }}>PROBABILITY OF PROFIT</div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '4px' }}>{mode.startsWith('OPTION_BUYING') ? 'INTRINSIC VALUE SHIELD' : 'PROBABILITY OF PROFIT'}</div>
           <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#2980B9' }}>
-            {res.popPercentage}% POP
+            {mode.startsWith('OPTION_BUYING') ? `${ltpStrategy.intrinsicValueRatioPct}% Intrinsic` : `${res.popPercentage}% POP`}
           </div>
           <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-            Risk/Reward: {res.riskRewardRatio} : 1
+            {mode.startsWith('OPTION_BUYING') ? 'Shielded against Theta decay' : `Risk/Reward: ${res.riskRewardRatio} : 1`}
           </div>
         </div>
       </div>
