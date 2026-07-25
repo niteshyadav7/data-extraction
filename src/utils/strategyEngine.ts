@@ -1080,7 +1080,9 @@ export const calculateShortStrangleStrategy = (
   const popPercentage = Math.min(96, Math.max(75, Math.round((1 - (Math.abs(spDelta) + Math.abs(scDelta))) * 100)));
 
   const totalExtrinsicCaptured = Math.round((spExtrinsic + scExtrinsic) * lotSize);
-  const dailyThetaIncome = Math.round(((-spTheta) + (-scTheta)) * lotSize);
+  const calculatedTheta = Math.round(((-spTheta) + (-scTheta)) * lotSize);
+  const avgDailyThetaDecay = maxProfit > 0 ? Math.round(maxProfit / 4.0) : 0;
+  const dailyThetaIncome = Math.max(calculatedTheta, avgDailyThetaDecay);
   const vegaCrushGain = Math.round(((-spVega) + (-scVega)) * lotSize);
 
   const greeks: StrategyGreeks = {
