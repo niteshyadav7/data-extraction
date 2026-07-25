@@ -19,6 +19,7 @@ import {
   calculateBullPutCreditSpread,
   calculateBearCallCreditSpread,
   calculateShortStrangleStrategy,
+  calculateRatioPutSpreadStrategy,
   calculateBullCallSpread,
   calculateBearPutSpread,
   getDefaultLotSizeForSymbol,
@@ -32,7 +33,7 @@ interface StrategyHubSectionProps {
   supportResistance?: any;
   maxPainStrike?: number;
   expectedMoveBounds?: { upper: number; lower: number };
-  initialTab?: 'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BEAR_CALL_CREDIT' | 'SHORT_STRANGLE' | 'BULL_CALL' | 'BEAR_PUT' | 'ALL';
+  initialTab?: 'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BEAR_CALL_CREDIT' | 'SHORT_STRANGLE' | 'RATIO_PUT_SPREAD' | 'BULL_CALL' | 'BEAR_PUT' | 'ALL';
   onBackToDashboard?: () => void;
 }
 
@@ -46,7 +47,7 @@ export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
   initialTab = 'IRON_CONDOR',
   onBackToDashboard
 }) => {
-  const [activeTab, setActiveTab] = useState<'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BEAR_CALL_CREDIT' | 'SHORT_STRANGLE' | 'BULL_CALL' | 'BEAR_PUT'>(
+  const [activeTab, setActiveTab] = useState<'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BEAR_CALL_CREDIT' | 'SHORT_STRANGLE' | 'RATIO_PUT_SPREAD' | 'BULL_CALL' | 'BEAR_PUT'>(
     initialTab === 'ALL' || initialTab === 'IRON_CONDOR' ? 'IRON_CONDOR' : initialTab
   );
   const [lotSize, setLotSize] = useState<number>(getDefaultLotSizeForSymbol(selectedSymbol));
@@ -133,6 +134,14 @@ export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
     );
   } else if (activeTab === 'SHORT_STRANGLE') {
     result = calculateShortStrangleStrategy(
+      optionChain,
+      currentSpot,
+      selectedSymbol,
+      lotSize,
+      supportResistance
+    );
+  } else if (activeTab === 'RATIO_PUT_SPREAD') {
+    result = calculateRatioPutSpreadStrategy(
       optionChain,
       currentSpot,
       selectedSymbol,
@@ -294,6 +303,26 @@ export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
           }}
         >
           <Activity size={16} /> ⚡ Short Strangle (Volatility Crush)
+        </button>
+
+        <button
+          onClick={() => setActiveTab('RATIO_PUT_SPREAD')}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '10px 18px',
+            borderRadius: '8px',
+            fontSize: '0.88rem',
+            fontWeight: 700,
+            cursor: 'pointer',
+            backgroundColor: activeTab === 'RATIO_PUT_SPREAD' ? '#D35400' : 'var(--bg-main)',
+            color: activeTab === 'RATIO_PUT_SPREAD' ? '#FFF' : 'var(--text-main)',
+            border: `1.5px solid ${activeTab === 'RATIO_PUT_SPREAD' ? '#D35400' : 'var(--border-color)'}`,
+            transition: 'all 0.15s ease'
+          }}
+        >
+          <Target size={16} /> 🎯 Ratio Put Spread (Zero-Cost Crash Hedge)
         </button>
 
         <button

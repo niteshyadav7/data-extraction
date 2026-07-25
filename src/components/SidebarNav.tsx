@@ -26,13 +26,13 @@ interface NavSection {
   iconColor: string;
   badge?: string;
   isViewSwitch?: boolean;
-  viewName?: 'DASHBOARD' | 'STRATEGY_HUB' | 'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BEAR_CALL_CREDIT' | 'SHORT_STRANGLE';
+  viewName?: 'DASHBOARD' | 'STRATEGY_HUB' | 'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BEAR_CALL_CREDIT' | 'SHORT_STRANGLE' | 'RATIO_PUT_SPREAD';
 }
 
 interface SidebarNavProps {
   activeSection?: string;
-  currentView?: 'DASHBOARD' | 'STRATEGY_HUB' | 'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BEAR_CALL_CREDIT' | 'SHORT_STRANGLE';
-  onSelectView?: (view: 'DASHBOARD' | 'STRATEGY_HUB' | 'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BEAR_CALL_CREDIT' | 'SHORT_STRANGLE', sectionId?: string) => void;
+  currentView?: 'DASHBOARD' | 'STRATEGY_HUB' | 'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BEAR_CALL_CREDIT' | 'SHORT_STRANGLE' | 'RATIO_PUT_SPREAD';
+  onSelectView?: (view: 'DASHBOARD' | 'STRATEGY_HUB' | 'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BEAR_CALL_CREDIT' | 'SHORT_STRANGLE' | 'RATIO_PUT_SPREAD', sectionId?: string) => void;
 }
 
 export const SidebarNav: React.FC<SidebarNavProps> = ({
@@ -95,6 +95,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
         { id: 'sec-bull-put-credit', label: 'Bull Put Credit Spread', icon: TrendingUp, iconColor: '#27AE60', badge: 'Support Credit', isViewSwitch: true, viewName: 'BULL_PUT_CREDIT' },
         { id: 'sec-bear-call-credit', label: 'Bear Call Credit Spread', icon: TrendingDown, iconColor: '#C0392B', badge: 'Resistance Credit', isViewSwitch: true, viewName: 'BEAR_CALL_CREDIT' },
         { id: 'sec-short-strangle', label: 'Short Strangle Strategy', icon: Activity, iconColor: '#8E44AD', badge: 'IV Crush', isViewSwitch: true, viewName: 'SHORT_STRANGLE' },
+        { id: 'sec-ratio-put-spread', label: 'Ratio Put Spread', icon: Target, iconColor: '#D35400', badge: 'Crash Hedge', isViewSwitch: true, viewName: 'RATIO_PUT_SPREAD' },
       ]
     }
   ];
@@ -155,6 +156,11 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
     }
     if (currentView === 'SHORT_STRANGLE') {
       setCurrentActive('sec-short-strangle');
+      setOpenCategories(prev => ({ ...prev, 'QUANT STRATEGIES': true }));
+      return;
+    }
+    if (currentView === 'RATIO_PUT_SPREAD') {
+      setCurrentActive('sec-ratio-put-spread');
       setOpenCategories(prev => ({ ...prev, 'QUANT STRATEGIES': true }));
       return;
     }

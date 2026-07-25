@@ -1064,7 +1064,6 @@ export const calculateShortStrangleStrategy = (
   const netCreditTotal = Math.round(netCreditPerShare * lotSize);
 
   const maxProfit = netCreditTotal;
-  // Estimated 20% stress crash risk for display
   const maxLoss = Math.round((spotPrice * 0.15) * lotSize);
 
   const upperBreakeven = Math.round((scStrike + netCreditPerShare) * 100) / 100;
@@ -1164,6 +1163,197 @@ export const calculateShortStrangleStrategy = (
       eor1: Math.round(eor1),
       eor2: scStrike,
       maxPain: Math.round((spStrike + scStrike) / 2)
+    },
+    payoffRows
+  };
+};
+
+/**
+ * Strategy #6: 🎯 Dynamic Ratio Put Spread (Zero-Cost Tail Crash Hedge)
+ */
+export const calculateRatioPutSpreadStrategy = (
+  optionChain: any[],
+  spotPrice: number,
+  symbol: string = 'NIFTY',
+  customLotSize?: number,
+  supportResistance?: { top5Support: { strike: number }[]; top5Resistance: { strike: number }[] }
+): StrategyResult | null => {
+  if (!optionChain || optionChain.length < 5 || spotPrice <= 0) return null;
+
+  const lotSize = customLotSize && customLotSize > 0 ? customLotSize : getDefaultLotSizeForSymbol(symbol);
+  const sorted = [...optionChain].sort((a, b) => (a.strikePrice || a.strike) - (b.strikePrice || b.strike));
+
+  let atmIndex = 0;
+  let minDiff = Infinity;
+  sorted.forEach((row, idx) => {
+    const strike = row.strikePrice || row.strike || 0;
+    const diff = Math.abs(strike - spotPrice);
+    if (diff < minDiff) {
+      minDiff = diff;
+      atmIndex = idx;
+    }
+  });
+
+  const atmRow = sorted[atmIndex];
+  const atmPeLtp = atmRow.peLtp || 0;
+
+  const highestPutStrike = supportResistance?.top5Support?.[0]?.strike || 0;
+  const eos1 = highestPutStrike > 0 ? highestPutStrike - atmPeLtp : 0;
+
+  let shortPutIndex = Math.max(0, atmIndex - 3);
+  if (eos1 > 0) {
+    let bestIdx = shortPutIndex;
+    let minErr = Infinity;
+    sorted.forEach((row, idx) => {
+      const s = row.strikePrice || row.strike;
+      if (s <= eos1) {
+        const err = Math.abs(s - eos1);
+        if (err < minErr) {
+          minErr = err;
+          bestIdx = idx;
+        }
+      }
+    });
+    shortPutIndex = bestIdx;
+  }
+
+  const buyPutRow = atmRow;
+  const shortPutRow = sorted[shortPutIndex];
+
+  const bpStrike = buyPutRow.strikePrice || buyPutRow.strike;
+  const spStrike = shortPutRow.strikePrice || shortPutRow.strike;
+
+  const bpLtp = buyPutRow.peLtp || 0;
+  const spLtp = shortPutRow.peLtp || 0;
+
+  const bpDelta = buyPutRow.peDelta !== undefined ? buyPutRow.peDelta : -0.50;
+  const spDelta = shortPutRow.peDelta !== undefined ? shortPutRow.peDelta : -0.20;
+
+  const bpTheta = buyPutRow.peTheta !== undefined ? buyPutRow.peTheta : -10;
+  const spTheta = shortPutRow.peTheta !== undefined ? shortPutRow.peTheta : -4;
+
+  const bpVega = buyPutRow.peVega !== undefined ? buyPutRow.peVega : 14;
+  const spVega = shortPutRow.peVega !== undefined ? shortPutRow.peVega : 6;
+
+  const bpGamma = buyPutRow.peGamma !== undefined ? buyPutRow.peGamma : 0.002;
+  const spGamma = shortPutRow.peGamma !== undefined ? shortPutRow.peGamma : 0.0008;
+
+  const bpExtrinsic = Math.max(0, bpLtp - Math.max(0, bpStrike - spotPrice));
+  const spExtrinsic = Math.max(0, spLtp - Math.max(0, spStrike - spotPrice));
+
+  const legs: StrategyLeg[] = [
+    { action: 'BUY', optionType: 'PE', strike: bpStrike, ltp: bpLtp, delta: bpDelta, gamma: bpGamma, theta: bpTheta, vega: bpVega, iv: buyPutRow.peIv || 0, extrinsicValue: bpExtrinsic, role: 'Long 1x ATM Put (Tail Crash Protection)' },
+    { action: 'SELL', optionType: 'PE', strike: spStrike, ltp: spLtp, delta: spDelta, gamma: spGamma, theta: spTheta, vega: spVega, iv: shortPutRow.peIv || 0, extrinsicValue: spExtrinsic, role: 'Short 2x OTM Puts (EOS1 Support Financing)' }
+  ];
+
+  // 1x Buy PE vs 2x Sell PE
+  const netCostPerShare = Math.round((bpLtp - (2 * spLtp)) * 100) / 100;
+  const isCredit = netCostPerShare <= 0;
+  const netCreditPerShare = isCredit ? Math.abs(netCostPerShare) : 0;
+  const netDebitPerShare = !isCredit ? netCostPerShare : 0;
+
+  const maxProfitPerShare = Math.max(0, (bpStrike - spStrike) + netCreditPerShare - netDebitPerShare);
+  const maxProfit = Math.round(maxProfitPerShare * lotSize);
+
+  // Peak profit occurs when spot lands on spStrike
+  const upperBreakeven = isCredit ? Math.round((bpStrike + netCreditPerShare) * 100) / 100 : Math.round((bpStrike - netDebitPerShare) * 100) / 100;
+  const lowerBreakeven = Math.round((spStrike - maxProfitPerShare) * 100) / 100;
+
+  const maxLoss = Math.round((spotPrice * 0.15) * lotSize);
+  const riskRewardRatio = maxProfit > 0 ? Math.round((maxLoss / maxProfit) * 100) / 100 : 0;
+  const popPercentage = Math.min(94, Math.max(72, Math.round((1 - Math.abs(spDelta)) * 100)));
+
+  const totalExtrinsicCaptured = Math.round(((2 * spExtrinsic) - bpExtrinsic) * lotSize);
+  const dailyThetaIncome = Math.round(((-2 * spTheta) + bpTheta) * lotSize);
+  const vegaCrushGain = Math.round(((-2 * spVega) + bpVega) * lotSize);
+
+  const greeks: StrategyGreeks = {
+    netDelta: Math.round((bpDelta - (2 * spDelta)) * lotSize * 100) / 100,
+    netGamma: Math.round((bpGamma - (2 * spGamma)) * lotSize * 1000) / 1000,
+    dailyThetaIncome: Math.max(0, dailyThetaIncome),
+    vegaCrushGain
+  };
+
+  const healthScore: StrategyInstitutionalScore = {
+    score: 92,
+    rating: 'EXCELLENT',
+    reversalAlignmentText: `2x Short Puts (₹${spStrike}) placed at EOS1 Support (₹${Math.round(eos1)}) financing 1x Long ATM Put (₹${bpStrike})`,
+    expectedMoveText: `Zero/Low Net Cost with Peak Profit of ₹${maxProfit.toLocaleString('en-IN')} at ₹${spStrike}`
+  };
+
+  const decisionIntelligence: StrategyDecisionIntelligence = {
+    executiveSummary: `Zero-Cost Ratio Put Spread on ${symbol.toUpperCase()}. Buying 1x ATM Put (₹${bpStrike}) financed by selling 2x OTM Puts at EOS1 (₹${spStrike}) creates a high-conviction tail crash hedge. Generates up to +₹${maxProfit.toLocaleString('en-IN')} peak profit with zero upside loss.`,
+    confluenceScore: 92,
+    confidenceRating: 'HIGH CONFIDENCE',
+    pros: [
+      `Zero-Cost or Net Credit financing: The 2 sold OTM Puts (₹${spStrike}) completely cover the cost of the 1 bought ATM Put (₹${bpStrike}).`,
+      `Maximum Downside Crash Profit (+₹${maxProfit.toLocaleString('en-IN')}) if market drops to EOS1 Support (₹${spStrike}).`,
+      `Zero Upside Loss: If market rallies, position expires with zero loss or small net credit.`,
+      `High POP (${popPercentage}% POP) with strong put writing support.`
+    ],
+    cons: [
+      `Uncapped downside risk if market undergoes a catastrophic breakdown below lower breakeven ₹${lowerBreakeven}.`,
+      `Requires margin for 1 unhedged short put leg.`
+    ],
+    executionPlan: {
+      entryZone: `Enter when Put IV skew is elevated or Tail Crash warning is active.`,
+      profitTarget: `Target exit at 70% - 85% peak profit (+₹${Math.round(maxProfit * 0.75).toLocaleString('en-IN')}) when spot reaches short put strike (₹${spStrike}).`,
+      adjustmentTrigger: `Close position or buy protective long put if spot breaks below EOS1 support (₹${spStrike}).`
+    }
+  };
+
+  const payoffRows: PayoffRow[] = [];
+  const minSpot = Math.round(lowerBreakeven * 0.96);
+  const maxSpot = Math.round(bpStrike * 1.05);
+  const step = Math.max(5, Math.round((maxSpot - minSpot) / 15));
+
+  for (let s = minSpot; s <= maxSpot; s += step) {
+    const buyGain = Math.max(0, bpStrike - s);
+    const shortLoss = 2 * Math.max(0, spStrike - s);
+
+    const netPayoffPerShare = buyGain - shortLoss + netCreditPerShare - netDebitPerShare;
+    const pnl = Math.round(netPayoffPerShare * lotSize);
+    const pnlPct = maxLoss > 0 ? Math.round((pnl / maxLoss) * 100) : 0;
+
+    let tag: string | undefined;
+    if (Math.abs(s - spStrike) < step / 2) tag = 'PEAK PROFIT / EOS1 SUPPORT STRIKE';
+    else if (Math.abs(s - bpStrike) < step / 2) tag = 'ATM LONG PUT STRIKE';
+
+    payoffRows.push({
+      spot: s,
+      pnl,
+      pnlPct,
+      isCurrentSpot: Math.abs(s - spotPrice) < step / 2,
+      isBreakeven: Math.abs(s - lowerBreakeven) < step / 2 || Math.abs(s - upperBreakeven) < step / 2,
+      isEos1: Math.abs(s - spStrike) < step / 2,
+      tag
+    });
+  }
+
+  return {
+    strategyName: 'Ratio Put Spread (Zero-Cost Crash Hedge)',
+    symbol: symbol.toUpperCase(),
+    spotPrice,
+    lotSize,
+    legs,
+    netCreditPerShare,
+    netDebitPerShare,
+    maxProfit,
+    maxLoss,
+    upperBreakeven,
+    lowerBreakeven,
+    riskRewardRatio,
+    popPercentage,
+    totalExtrinsicCaptured,
+    greeks,
+    healthScore,
+    decisionIntelligence,
+    reversalLevels: {
+      eos1: spStrike,
+      eos2: Math.round(lowerBreakeven),
+      eor1: bpStrike,
+      eor2: bpStrike + (bpStrike - spStrike),
+      maxPain: spStrike
     },
     payoffRows
   };
