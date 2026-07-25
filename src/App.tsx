@@ -22,6 +22,7 @@ import { LtpCalculatorSection } from './components/LtpCalculatorSection';
 import { StrategyHubSection } from './components/StrategyHubSection';
 import { WarningsSection } from './components/WarningsSection';
 import { FiiDiiAnalysis } from './components/FiiDiiAnalysis';
+import { SmartStrategyRecommendationBanner } from './components/SmartStrategyRecommendationBanner';
 
 import type {
   DashboardMetrics,
@@ -586,6 +587,12 @@ export function App() {
 
           {metrics && (
             <>
+              {/* Automated Smart Strategy Recommendation Banner (100% Dynamic Real Data) */}
+              <SmartStrategyRecommendationBanner
+                metrics={metrics}
+                onSelectStrategy={(key) => setCurrentView(key as any)}
+              />
+
               {/* Table 1: Market Summary */}
               <div id="sec-summary">
                 <MarketSummary data={metrics.marketSummary} />
