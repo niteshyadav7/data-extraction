@@ -437,17 +437,21 @@ export function App() {
 
   const handleSelectView = (view: 'DASHBOARD' | 'STRATEGY_HUB' | 'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BEAR_CALL_CREDIT' | 'SHORT_STRANGLE' | 'RATIO_PUT_SPREAD' | 'CALENDAR_SPREAD', sectionId?: string) => {
     setCurrentView(view);
-    if (view === 'DASHBOARD' && sectionId) {
-      setTimeout(() => {
-        const el = document.getElementById(sectionId);
-        if (el) {
-          const offset = 90;
-          const bodyRect = document.body.getBoundingClientRect().top;
-          const elementRect = el.getBoundingClientRect().top;
-          const elementPosition = elementRect - bodyRect;
-          window.scrollTo({ top: elementPosition - offset, behavior: 'smooth' });
-        }
-      }, 50);
+    if (view === 'DASHBOARD') {
+      if (sectionId && sectionId !== 'top') {
+        setTimeout(() => {
+          const el = document.getElementById(sectionId);
+          if (el) {
+            const offset = 90;
+            const bodyRect = document.body.getBoundingClientRect().top;
+            const elementRect = el.getBoundingClientRect().top;
+            const elementPosition = elementRect - bodyRect;
+            window.scrollTo({ top: elementPosition - offset, behavior: 'smooth' });
+          }
+        }, 50);
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
     }
   };
 
@@ -458,7 +462,7 @@ export function App() {
         selectedSymbol={selectedSymbol}
         onSelectSymbol={handleSelectSymbol}
         onReset={handleReset}
-        onGoToDashboard={() => handleSelectView('DASHBOARD', 'sec-summary')}
+        onGoToDashboard={() => handleSelectView('DASHBOARD')}
       />
 
       <div style={{ display: 'flex', width: '100%', minHeight: 'calc(100vh - 70px)' }}>

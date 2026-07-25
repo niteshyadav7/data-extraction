@@ -55,9 +55,9 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
   const toggleCategory = (title: string) => {
     if (title === 'OVERVIEW') {
       if (onSelectView) {
-        onSelectView('DASHBOARD', 'sec-summary');
+        onSelectView('DASHBOARD');
       } else {
-        scrollToSection('sec-summary');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
       }
     }
 
@@ -113,13 +113,14 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
       title: 'QUANT STRATEGIES',
       categoryIcon: Layers,
       items: [
-        { id: 'sec-iron-condor', label: 'Iron Condor Strategy', icon: Briefcase, iconColor: '#27AE60', badge: 'Dynamic', isViewSwitch: true, viewName: 'IRON_CONDOR' },
-        { id: 'sec-iron-butterfly', label: 'Iron Butterfly Strategy', icon: Award, iconColor: '#2980B9', badge: 'Max Pain Pin', isViewSwitch: true, viewName: 'IRON_BUTTERFLY' },
-        { id: 'sec-bull-put-credit', label: 'Bull Put Credit Spread', icon: TrendingUp, iconColor: '#27AE60', badge: 'Support Credit', isViewSwitch: true, viewName: 'BULL_PUT_CREDIT' },
-        { id: 'sec-bear-call-credit', label: 'Bear Call Credit Spread', icon: TrendingDown, iconColor: '#C0392B', badge: 'Resistance Credit', isViewSwitch: true, viewName: 'BEAR_CALL_CREDIT' },
-        { id: 'sec-short-strangle', label: 'Short Strangle Strategy', icon: Activity, iconColor: '#8E44AD', badge: 'IV Crush', isViewSwitch: true, viewName: 'SHORT_STRANGLE' },
-        { id: 'sec-ratio-put-spread', label: 'Ratio Put Spread', icon: Target, iconColor: '#D35400', badge: 'Crash Hedge', isViewSwitch: true, viewName: 'RATIO_PUT_SPREAD' },
-        { id: 'sec-calendar-spread', label: 'Calendar Time Spread', icon: BarChart2, iconColor: '#16A085', badge: 'Theta Arb', isViewSwitch: true, viewName: 'CALENDAR_SPREAD' },
+        { id: 'sec-strategy', label: 'All Strategies', icon: Layers, iconColor: '#9B59B6', badge: 'Compare', isViewSwitch: true, viewName: 'STRATEGY_HUB' },
+        { id: 'sec-iron-condor', label: 'Iron Condor', icon: Briefcase, iconColor: '#27AE60', isViewSwitch: true, viewName: 'IRON_CONDOR' },
+        { id: 'sec-iron-butterfly', label: 'Iron Butterfly', icon: Activity, iconColor: '#E67E22', isViewSwitch: true, viewName: 'IRON_BUTTERFLY' },
+        { id: 'sec-bull-put-credit', label: 'Bull Put Credit', icon: TrendingUp, iconColor: '#2980B9', isViewSwitch: true, viewName: 'BULL_PUT_CREDIT' },
+        { id: 'sec-bear-call-credit', label: 'Bear Call Credit', icon: TrendingDown, iconColor: '#C0392B', isViewSwitch: true, viewName: 'BEAR_CALL_CREDIT' },
+        { id: 'sec-short-strangle', label: 'Short Strangle', icon: Target, iconColor: '#8E44AD', isViewSwitch: true, viewName: 'SHORT_STRANGLE' },
+        { id: 'sec-ratio-put-spread', label: 'Ratio Put Spread', icon: ShieldCheck, iconColor: '#D35400', isViewSwitch: true, viewName: 'RATIO_PUT_SPREAD' },
+        { id: 'sec-calendar-spread', label: 'Calendar Time Spread', icon: Award, iconColor: '#C5A059', badge: 'Real LTP', isViewSwitch: true, viewName: 'CALENDAR_SPREAD' },
       ]
     }
   ];
@@ -133,7 +134,10 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
       'QUANT STRATEGIES': catTitle === 'QUANT STRATEGIES'
     });
 
-    if (item.isViewSwitch && item.viewName && onSelectView) {
+    if (item.id === 'sec-summary') {
+      if (onSelectView) onSelectView('DASHBOARD');
+      else window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else if (item.isViewSwitch && item.viewName && onSelectView) {
       onSelectView(item.viewName, item.id);
     } else if (onSelectView) {
       onSelectView('DASHBOARD', item.id);
