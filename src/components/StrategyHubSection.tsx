@@ -26,6 +26,7 @@ import {
   getDefaultLotSizeForSymbol,
   type StrategyResult
 } from '../utils/strategyEngine';
+import { TradeAdjustmentEngine } from './TradeAdjustmentEngine';
 
 interface StrategyHubSectionProps {
   optionChain: any[];
@@ -677,6 +678,9 @@ export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
           </table>
         </div>
       </div>
+
+      {/* Institutional Defense & Trade Adjustment Studio */}
+      <TradeAdjustmentEngine strategy={result} nextExpiryChain={nextExpiryOptionChain} />
     </div>
   );
 };
