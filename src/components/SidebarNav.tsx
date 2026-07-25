@@ -27,13 +27,13 @@ interface NavSection {
   iconColor: string;
   badge?: string;
   isViewSwitch?: boolean;
-  viewName?: 'DASHBOARD' | 'STRATEGY_HUB' | 'LTP_STRATEGY' | 'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BEAR_CALL_CREDIT' | 'SHORT_STRANGLE' | 'RATIO_PUT_SPREAD' | 'CALENDAR_SPREAD';
+  viewName?: 'DASHBOARD' | 'STRATEGY_HUB' | 'LTP_CALCULATOR' | 'LTP_STRATEGY' | 'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BEAR_CALL_CREDIT' | 'SHORT_STRANGLE' | 'RATIO_PUT_SPREAD' | 'CALENDAR_SPREAD';
 }
 
 interface SidebarNavProps {
   activeSection?: string;
-  currentView?: 'DASHBOARD' | 'STRATEGY_HUB' | 'LTP_STRATEGY' | 'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BEAR_CALL_CREDIT' | 'SHORT_STRANGLE' | 'RATIO_PUT_SPREAD' | 'CALENDAR_SPREAD';
-  onSelectView?: (view: 'DASHBOARD' | 'STRATEGY_HUB' | 'LTP_STRATEGY' | 'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BEAR_CALL_CREDIT' | 'SHORT_STRANGLE' | 'RATIO_PUT_SPREAD' | 'CALENDAR_SPREAD', sectionId?: string) => void;
+  currentView?: 'DASHBOARD' | 'STRATEGY_HUB' | 'LTP_CALCULATOR' | 'LTP_STRATEGY' | 'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BEAR_CALL_CREDIT' | 'SHORT_STRANGLE' | 'RATIO_PUT_SPREAD' | 'CALENDAR_SPREAD';
+  onSelectView?: (view: 'DASHBOARD' | 'STRATEGY_HUB' | 'LTP_CALCULATOR' | 'LTP_STRATEGY' | 'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BEAR_CALL_CREDIT' | 'SHORT_STRANGLE' | 'RATIO_PUT_SPREAD' | 'CALENDAR_SPREAD', sectionId?: string) => void;
 }
 
 export const SidebarNav: React.FC<SidebarNavProps> = ({
@@ -106,7 +106,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
       title: 'LTP ENGINE',
       categoryIcon: Calculator,
       items: [
-        { id: 'sec-ltp', label: 'LTP Calculator', icon: Calculator, iconColor: '#34495E', badge: 'Step 18' },
+        { id: 'sec-ltp', label: 'LTP Calculator', icon: Calculator, iconColor: '#34495E', badge: 'Step 18', isViewSwitch: true, viewName: 'LTP_CALCULATOR' },
         { id: 'sec-ltp-strategy', label: 'LTP Strategy Studio', icon: Target, iconColor: '#C5A059', badge: 'Reversal', isViewSwitch: true, viewName: 'LTP_STRATEGY' },
       ]
     },

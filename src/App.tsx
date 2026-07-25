@@ -434,9 +434,9 @@ export function App() {
     setMetrics(null);
   };
 
-  const [currentView, setCurrentView] = useState<'DASHBOARD' | 'STRATEGY_HUB' | 'LTP_STRATEGY' | 'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BEAR_CALL_CREDIT' | 'SHORT_STRANGLE' | 'RATIO_PUT_SPREAD' | 'CALENDAR_SPREAD'>('DASHBOARD');
+  const [currentView, setCurrentView] = useState<'DASHBOARD' | 'STRATEGY_HUB' | 'LTP_CALCULATOR' | 'LTP_STRATEGY' | 'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BEAR_CALL_CREDIT' | 'SHORT_STRANGLE' | 'RATIO_PUT_SPREAD' | 'CALENDAR_SPREAD'>('DASHBOARD');
 
-  const handleSelectView = (view: 'DASHBOARD' | 'STRATEGY_HUB' | 'LTP_STRATEGY' | 'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BEAR_CALL_CREDIT' | 'SHORT_STRANGLE' | 'RATIO_PUT_SPREAD' | 'CALENDAR_SPREAD', sectionId?: string) => {
+  const handleSelectView = (view: 'DASHBOARD' | 'STRATEGY_HUB' | 'LTP_CALCULATOR' | 'LTP_STRATEGY' | 'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BEAR_CALL_CREDIT' | 'SHORT_STRANGLE' | 'RATIO_PUT_SPREAD' | 'CALENDAR_SPREAD', sectionId?: string) => {
     setCurrentView(view);
     if (view === 'DASHBOARD') {
       if (sectionId && sectionId !== 'top') {
@@ -569,6 +569,16 @@ export function App() {
               initialTab="CALENDAR_SPREAD"
               onBackToDashboard={() => setCurrentView('DASHBOARD')}
             />
+          ) : currentView === 'LTP_CALCULATOR' ? (
+            <div style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto', width: '100%' }}>
+              <LtpCalculatorSection
+                optionChain={metrics?.completeChain || []}
+                currentSpot={metrics?.marketSummary.spotPrice || 0}
+                daysToExpiry={metrics?.marketSummary.daysToExpiry || 4}
+                riskFreeRate={5.25}
+                onBackToDashboard={() => setCurrentView('DASHBOARD')}
+              />
+            </div>
           ) : currentView === 'LTP_STRATEGY' ? (
             <LtpStrategySection
               metrics={metrics}

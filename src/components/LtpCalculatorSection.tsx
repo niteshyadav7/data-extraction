@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calculator, RefreshCw, TrendingUp, TrendingDown, Filter, HelpCircle, ChevronDown, ChevronUp, Info, Sparkles } from 'lucide-react';
+import { Calculator, RefreshCw, TrendingUp, TrendingDown, Filter, HelpCircle, ChevronDown, ChevronUp, Info, Sparkles, ArrowLeft } from 'lucide-react';
 import { calculateLtpTargetMatrix } from '../utils/ltpCalculator';
 
 interface LtpCalculatorSectionProps {
@@ -7,13 +7,15 @@ interface LtpCalculatorSectionProps {
   currentSpot: number;
   daysToExpiry?: number;
   riskFreeRate?: number;
+  onBackToDashboard?: () => void;
 }
 
 export const LtpCalculatorSection: React.FC<LtpCalculatorSectionProps> = ({
   optionChain,
   currentSpot,
   daysToExpiry = 4,
-  riskFreeRate = 5.25
+  riskFreeRate = 5.25,
+  onBackToDashboard
 }) => {
   const [targetSpot, setTargetSpot] = useState<number>(currentSpot || 23767.45);
   const [ivShiftPct, setIvShiftPct] = useState<number>(0);
@@ -78,6 +80,18 @@ export const LtpCalculatorSection: React.FC<LtpCalculatorSectionProps> = ({
 
   return (
     <div className="card" style={{ marginBottom: '24px', width: '100%' }}>
+      {onBackToDashboard && (
+        <div style={{ marginBottom: '16px' }}>
+          <button
+            onClick={onBackToDashboard}
+            className="btn-secondary"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}
+          >
+            <ArrowLeft size={16} /> ← Back to Main Dashboard Overview
+          </button>
+        </div>
+      )}
+
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <h2 style={{ fontSize: '1.2rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '10px' }}>
