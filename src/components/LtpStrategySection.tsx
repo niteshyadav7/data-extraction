@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { DashboardMetrics } from '../types';
 import { calculateLtpReversalStrategy } from '../utils/ltpStrategyEngine';
 import { TradeAdjustmentEngine } from './TradeAdjustmentEngine';
-import { ArrowLeft, Layers, AlertTriangle, CheckCircle2, ShieldCheck, Activity, Sparkles } from 'lucide-react';
+import { ArrowLeft, Layers, AlertTriangle, CheckCircle2, ShieldCheck, Activity, Sparkles, TrendingUp, TrendingDown, Zap, Shield } from 'lucide-react';
 
 interface LtpStrategySectionProps {
   metrics: DashboardMetrics | null;
@@ -13,6 +13,8 @@ export const LtpStrategySection: React.FC<LtpStrategySectionProps> = ({
   metrics,
   onBackToDashboard
 }) => {
+  const [selectedMode, setSelectedMode] = useState<'OPTION_SELLING' | 'OPTION_BUYING_CALL' | 'OPTION_BUYING_PUT' | 'OPTION_BUYING_STRADDLE'>('OPTION_SELLING');
+
   if (!metrics || !metrics.completeChain || metrics.completeChain.length < 5) {
     return (
       <div style={{ padding: '24px' }}>
@@ -32,7 +34,7 @@ export const LtpStrategySection: React.FC<LtpStrategySectionProps> = ({
 
   const spot = metrics.marketSummary.spotPrice;
   const symbol = metrics.marketSummary.underlying || 'NIFTY';
-  const ltpStrategy = calculateLtpReversalStrategy(metrics.completeChain, spot, symbol);
+  const ltpStrategy = calculateLtpReversalStrategy(metrics.completeChain, spot, symbol, undefined, selectedMode);
 
   if (!ltpStrategy) return null;
 
@@ -68,6 +70,95 @@ export const LtpStrategySection: React.FC<LtpStrategySectionProps> = ({
         </span>
       </div>
 
+      {/* Mode Selector Bar: Option Selling vs Option Buying */}
+      <div className="card" style={{ marginBottom: '20px', padding: '14px 20px', backgroundColor: 'var(--bg-sidebar)' }}>
+        <div style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--text-muted)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+          Select Execution Strategy Mode (Option Selling vs Option Buying)
+        </div>
+
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          <button
+            onClick={() => setSelectedMode('OPTION_SELLING')}
+            style={{
+              padding: '10px 16px',
+              borderRadius: '8px',
+              fontWeight: 700,
+              fontSize: '0.85rem',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              backgroundColor: selectedMode === 'OPTION_SELLING' ? 'var(--accent-gold-dark)' : 'var(--bg-main)',
+              color: selectedMode === 'OPTION_SELLING' ? '#FFF' : 'var(--text-main)',
+              border: `1.5px solid ${selectedMode === 'OPTION_SELLING' ? 'var(--accent-gold-dark)' : 'var(--border-color)'}`,
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <Shield size={16} /> 🛡️ Option Selling (Credit Reversal Corridor)
+          </button>
+
+          <button
+            onClick={() => setSelectedMode('OPTION_BUYING_CALL')}
+            style={{
+              padding: '10px 16px',
+              borderRadius: '8px',
+              fontWeight: 700,
+              fontSize: '0.85rem',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              backgroundColor: selectedMode === 'OPTION_BUYING_CALL' ? 'var(--color-green)' : 'var(--bg-main)',
+              color: selectedMode === 'OPTION_BUYING_CALL' ? '#FFF' : 'var(--text-main)',
+              border: `1.5px solid ${selectedMode === 'OPTION_BUYING_CALL' ? 'var(--color-green)' : 'var(--border-color)'}`,
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <TrendingUp size={16} /> 🐂 Option Buying: Bullish Call Buyer
+          </button>
+
+          <button
+            onClick={() => setSelectedMode('OPTION_BUYING_PUT')}
+            style={{
+              padding: '10px 16px',
+              borderRadius: '8px',
+              fontWeight: 700,
+              fontSize: '0.85rem',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              backgroundColor: selectedMode === 'OPTION_BUYING_PUT' ? 'var(--color-red)' : 'var(--bg-main)',
+              color: selectedMode === 'OPTION_BUYING_PUT' ? '#FFF' : 'var(--text-main)',
+              border: `1.5px solid ${selectedMode === 'OPTION_BUYING_PUT' ? 'var(--color-red)' : 'var(--border-color)'}`,
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <TrendingDown size={16} /> 🐻 Option Buying: Bearish Put Buyer
+          </button>
+
+          <button
+            onClick={() => setSelectedMode('OPTION_BUYING_STRADDLE')}
+            style={{
+              padding: '10px 16px',
+              borderRadius: '8px',
+              fontWeight: 700,
+              fontSize: '0.85rem',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              backgroundColor: selectedMode === 'OPTION_BUYING_STRADDLE' ? '#8E44AD' : 'var(--bg-main)',
+              color: selectedMode === 'OPTION_BUYING_STRADDLE' ? '#FFF' : 'var(--text-main)',
+              border: `1.5px solid ${selectedMode === 'OPTION_BUYING_STRADDLE' ? '#8E44AD' : 'var(--border-color)'}`,
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <Zap size={16} /> ⚡ Option Buying: Volatility Breakout
+          </button>
+        </div>
+      </div>
+
       {/* Main Title Banner */}
       <div className="card" style={{ marginBottom: '24px', backgroundColor: 'var(--bg-sidebar)', border: '2px solid var(--accent-gold)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
@@ -84,13 +175,13 @@ export const LtpStrategySection: React.FC<LtpStrategySectionProps> = ({
               gap: '4px',
               marginBottom: '6px'
             }}>
-              <Sparkles size={14} /> 100% UNIQUE EXTRINSIC REVERSAL ENGINE
+              <Sparkles size={14} /> 100% UNIQUE REVERSAL ENGINE
             </span>
             <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)' }}>
-              📐 LTP Reversal Boundary Arbitrage Studio ({symbol})
+              📐 {res.strategyName} ({symbol})
             </h2>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-              Anchors short options at the exact mathematical Extrinsic EOR Reversal Ceiling (₹{eorCeilingStrike}) & EOS Reversal Floor (₹{eosFloorStrike}).
+              Anchored at mathematical Extrinsic EOR Reversal Ceiling (₹{eorCeilingStrike}) & EOS Reversal Floor (₹{eosFloorStrike}).
             </p>
           </div>
 
@@ -116,19 +207,19 @@ export const LtpStrategySection: React.FC<LtpStrategySectionProps> = ({
         </div>
 
         <div className="card" style={{ borderLeft: '4px solid var(--color-green)' }}>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '4px' }}>MAX PROFIT (NET CREDIT)</div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '4px' }}>MAX PROFIT TARGET</div>
           <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-green)' }}>
             +₹{res.maxProfit.toLocaleString('en-IN')}
           </div>
           <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-            ₹{res.netCreditPerShare}/share × {res.lotSize}
+            {res.netCreditPerShare > 0 ? `Net Credit ₹${res.netCreditPerShare}/share` : `Net Debit ₹${res.netDebitPerShare}/share`} × {res.lotSize}
           </div>
         </div>
 
         <div className="card" style={{ borderLeft: '4px solid #8E44AD' }}>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '4px' }}>DAILY THETA INCOME</div>
-          <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#8E44AD' }}>
-            +₹{res.greeks.dailyThetaIncome.toLocaleString('en-IN')}/day
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '4px' }}>DAILY THETA IMPACT</div>
+          <div style={{ fontSize: '1.25rem', fontWeight: 800, color: res.greeks.dailyThetaIncome >= 0 ? '#8E44AD' : 'var(--color-red)' }}>
+            {res.greeks.dailyThetaIncome >= 0 ? `+₹${res.greeks.dailyThetaIncome.toLocaleString('en-IN')}/day` : `-₹${Math.abs(res.greeks.dailyThetaIncome).toLocaleString('en-IN')}/day`}
           </div>
           <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '4px' }}>
             {extrinsicHarvestEfficiencyPct}% Extrinsic Efficiency
