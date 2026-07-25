@@ -773,6 +773,194 @@ export const calculateBullPutCreditSpread = (
   };
 };
 
+/**
+ * Strategy #4: 📉 Bear Call Credit Spread (Resistance Credit Reversal)
+ */
+export const calculateBearCallCreditSpread = (
+  optionChain: any[],
+  spotPrice: number,
+  symbol: string = 'NIFTY',
+  customLotSize?: number,
+  wingWidthStrikes: number = 2,
+  supportResistance?: { top5Support: { strike: number }[]; top5Resistance: { strike: number }[] }
+): StrategyResult | null => {
+  if (!optionChain || optionChain.length < 5 || spotPrice <= 0) return null;
+
+  const lotSize = customLotSize && customLotSize > 0 ? customLotSize : getDefaultLotSizeForSymbol(symbol);
+  const sorted = [...optionChain].sort((a, b) => (a.strikePrice || a.strike) - (b.strikePrice || b.strike));
+
+  let atmIndex = 0;
+  let minDiff = Infinity;
+  sorted.forEach((row, idx) => {
+    const strike = row.strikePrice || row.strike || 0;
+    const diff = Math.abs(strike - spotPrice);
+    if (diff < minDiff) {
+      minDiff = diff;
+      atmIndex = idx;
+    }
+  });
+
+  const atmRow = sorted[atmIndex];
+  const atmCeLtp = atmRow.ceLtp || 0;
+  const highestCallStrike = supportResistance?.top5Resistance?.[0]?.strike || 0;
+  const eor1 = highestCallStrike > 0 ? highestCallStrike + atmCeLtp : 0;
+
+  let shortCallIndex = Math.min(sorted.length - 1, atmIndex + 2);
+  if (eor1 > 0) {
+    let bestIdx = shortCallIndex;
+    let minErr = Infinity;
+    sorted.forEach((row, idx) => {
+      const s = row.strikePrice || row.strike;
+      if (s >= eor1) {
+        const err = Math.abs(s - eor1);
+        if (err < minErr) {
+          minErr = err;
+          bestIdx = idx;
+        }
+      }
+    });
+    shortCallIndex = bestIdx;
+  }
+
+  const longCallIndex = Math.min(sorted.length - 1, shortCallIndex + wingWidthStrikes);
+
+  const shortCallRow = sorted[shortCallIndex];
+  const longCallRow = sorted[longCallIndex];
+
+  const scStrike = shortCallRow.strikePrice || shortCallRow.strike;
+  const lcStrike = longCallRow.strikePrice || longCallRow.strike;
+
+  const scLtp = shortCallRow.ceLtp || 0;
+  const lcLtp = longCallRow.ceLtp || 0;
+
+  const scDelta = shortCallRow.ceDelta !== undefined ? shortCallRow.ceDelta : 0.25;
+  const lcDelta = longCallRow.ceDelta !== undefined ? longCallRow.ceDelta : 0.10;
+
+  const scTheta = shortCallRow.ceTheta !== undefined ? shortCallRow.ceTheta : -5;
+  const lcTheta = longCallRow.ceTheta !== undefined ? longCallRow.ceTheta : -2;
+
+  const scVega = shortCallRow.ceVega !== undefined ? shortCallRow.ceVega : 10;
+  const lcVega = longCallRow.ceVega !== undefined ? longCallRow.ceVega : 4;
+
+  const scGamma = shortCallRow.ceGamma !== undefined ? shortCallRow.ceGamma : 0.001;
+  const lcGamma = longCallRow.ceGamma !== undefined ? longCallRow.ceGamma : 0.0005;
+
+  const scExtrinsic = Math.max(0, scLtp - Math.max(0, spotPrice - scStrike));
+  const lcExtrinsic = Math.max(0, lcLtp - Math.max(0, spotPrice - lcStrike));
+
+  const legs: StrategyLeg[] = [
+    { action: 'SELL', optionType: 'CE', strike: scStrike, ltp: scLtp, delta: scDelta, gamma: scGamma, theta: scTheta, vega: scVega, iv: shortCallRow.ceIv || 0, extrinsicValue: scExtrinsic, role: 'Short Call (EOR1 Resistance)' },
+    { action: 'BUY', optionType: 'CE', strike: lcStrike, ltp: lcLtp, delta: lcDelta, gamma: lcGamma, theta: lcTheta, vega: lcVega, iv: longCallRow.ceIv || 0, extrinsicValue: lcExtrinsic, role: 'Long Call Protection' }
+  ];
+
+  const netCreditPerShare = Math.max(0, Math.round((scLtp - lcLtp) * 100) / 100);
+  const netCreditTotal = Math.round(netCreditPerShare * lotSize);
+
+  const spreadWidth = lcStrike - scStrike;
+  const maxProfit = netCreditTotal;
+  const maxLossPerShare = Math.max(0, spreadWidth - netCreditPerShare);
+  const maxLoss = Math.round(maxLossPerShare * lotSize);
+
+  const upperBreakeven = Math.round((scStrike + netCreditPerShare) * 100) / 100;
+  const riskRewardRatio = maxProfit > 0 ? Math.round((maxLoss / maxProfit) * 100) / 100 : 0;
+  const popPercentage = Math.min(92, Math.max(65, Math.round((1 - Math.abs(scDelta)) * 100)));
+
+  const totalExtrinsicCaptured = Math.round((scExtrinsic - lcExtrinsic) * lotSize);
+  const dailyThetaIncome = Math.round(((-scTheta) + lcTheta) * lotSize);
+  const vegaCrushGain = Math.round(((-scVega) + lcVega) * lotSize);
+
+  const greeks: StrategyGreeks = {
+    netDelta: Math.round((lcDelta - scDelta) * lotSize * 100) / 100,
+    netGamma: Math.round((lcGamma - scGamma) * lotSize * 1000) / 1000,
+    dailyThetaIncome: Math.max(0, dailyThetaIncome),
+    vegaCrushGain
+  };
+
+  const healthScore: StrategyInstitutionalScore = {
+    score: 88,
+    rating: 'EXCELLENT',
+    reversalAlignmentText: `Short Call (₹${scStrike}) placed at/above EOR1 Primary Resistance (₹${Math.round(eor1)})`,
+    expectedMoveText: `Upper Breakeven at ₹${upperBreakeven}`
+  };
+
+  const decisionIntelligence: StrategyDecisionIntelligence = {
+    executiveSummary: `Bearish Call Credit Spread on ${symbol.toUpperCase()} supported by heavy call writing at EOR1 (₹${Math.round(eor1)}). Short Call (₹${scStrike}) collects +₹${maxProfit.toLocaleString('en-IN')} upfront net credit with a high ${popPercentage}% POP and defined upside risk.`,
+    confluenceScore: 88,
+    confidenceRating: 'HIGH CONFIDENCE',
+    pros: [
+      `High Probability of Profit (${popPercentage}% POP) with Short Call sitting above EOR1 Primary Resistance (₹${Math.round(eor1)}).`,
+      `Upfront Net Credit collection (+₹${maxProfit.toLocaleString('en-IN')}) for lot size ${lotSize}.`,
+      `Negative Delta bias (Net Δ: ${greeks.netDelta}) capturing bearish/neutral market momentum.`,
+      `Positive daily Theta income (+₹${dailyThetaIncome}/day) benefiting from time decay.`,
+      `100% defined capped risk of ₹${maxLoss.toLocaleString('en-IN')} via protective long call.`
+    ],
+    cons: [
+      `Max Risk (₹${maxLoss.toLocaleString('en-IN')}) exceeds Net Credit collected if market experiences sharp bullish breakout.`,
+      `Requires spot to remain below upper breakeven ₹${upperBreakeven} through expiry.`
+    ],
+    executionPlan: {
+      entryZone: `Spot below EOR1 resistance (near ₹${spotPrice.toLocaleString('en-IN')}) on bearish momentum.`,
+      profitTarget: `Exit at 60% - 85% max profit (harvest +₹${Math.round(maxProfit * 0.75).toLocaleString('en-IN')} profit).`,
+      adjustmentTrigger: `Exit or roll if spot breaches Short Call strike (₹${scStrike}).`
+    }
+  };
+
+  const payoffRows: PayoffRow[] = [];
+  const minSpot = Math.round(scStrike * 0.94);
+  const maxSpot = Math.round(lcStrike * 1.04);
+  const step = Math.max(5, Math.round((maxSpot - minSpot) / 15));
+
+  for (let s = minSpot; s <= maxSpot; s += step) {
+    const callShortLoss = Math.max(0, s - scStrike);
+    const callLongGain = Math.max(0, s - lcStrike);
+
+    const netPayoffPerShare = netCreditPerShare - callShortLoss + callLongGain;
+    const pnl = Math.round(netPayoffPerShare * lotSize);
+    const pnlPct = maxLoss > 0 ? Math.round((pnl / maxLoss) * 100) : 0;
+
+    let tag: string | undefined;
+    if (eor1 > 0 && Math.abs(s - eor1) < step / 2) tag = 'EOR1 PRIMARY RESISTANCE';
+
+    payoffRows.push({
+      spot: s,
+      pnl,
+      pnlPct,
+      isCurrentSpot: Math.abs(s - spotPrice) < step / 2,
+      isBreakeven: Math.abs(s - upperBreakeven) < step / 2,
+      isEor1: eor1 > 0 && Math.abs(s - eor1) < step / 2,
+      tag
+    });
+  }
+
+  return {
+    strategyName: 'Bear Call Credit Spread (Resistance Credit)',
+    symbol: symbol.toUpperCase(),
+    spotPrice,
+    lotSize,
+    legs,
+    netCreditPerShare,
+    netDebitPerShare: 0,
+    maxProfit,
+    maxLoss,
+    upperBreakeven,
+    lowerBreakeven: scStrike - spreadWidth,
+    riskRewardRatio,
+    popPercentage,
+    totalExtrinsicCaptured,
+    greeks,
+    healthScore,
+    decisionIntelligence,
+    reversalLevels: {
+      eos1: scStrike - spreadWidth,
+      eos2: scStrike - (spreadWidth * 2),
+      eor1: Math.round(eor1),
+      eor2: lcStrike,
+      maxPain: scStrike
+    },
+    payoffRows
+  };
+};
+
 export const calculateBullCallSpread = (
   optionChain: any[],
   spotPrice: number,

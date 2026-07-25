@@ -7,6 +7,7 @@ import {
   BarChart2,
   ShieldCheck,
   TrendingUp,
+  TrendingDown,
   Zap,
   Target,
   Table,
@@ -25,13 +26,13 @@ interface NavSection {
   iconColor: string;
   badge?: string;
   isViewSwitch?: boolean;
-  viewName?: 'DASHBOARD' | 'STRATEGY_HUB' | 'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT';
+  viewName?: 'DASHBOARD' | 'STRATEGY_HUB' | 'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BEAR_CALL_CREDIT';
 }
 
 interface SidebarNavProps {
   activeSection?: string;
-  currentView?: 'DASHBOARD' | 'STRATEGY_HUB' | 'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT';
-  onSelectView?: (view: 'DASHBOARD' | 'STRATEGY_HUB' | 'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT', sectionId?: string) => void;
+  currentView?: 'DASHBOARD' | 'STRATEGY_HUB' | 'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BEAR_CALL_CREDIT';
+  onSelectView?: (view: 'DASHBOARD' | 'STRATEGY_HUB' | 'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BEAR_CALL_CREDIT', sectionId?: string) => void;
 }
 
 export const SidebarNav: React.FC<SidebarNavProps> = ({
@@ -92,6 +93,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
         { id: 'sec-iron-condor', label: 'Iron Condor Strategy', icon: Briefcase, iconColor: '#27AE60', badge: 'Dynamic', isViewSwitch: true, viewName: 'IRON_CONDOR' },
         { id: 'sec-iron-butterfly', label: 'Iron Butterfly Strategy', icon: Award, iconColor: '#2980B9', badge: 'Max Pain Pin', isViewSwitch: true, viewName: 'IRON_BUTTERFLY' },
         { id: 'sec-bull-put-credit', label: 'Bull Put Credit Spread', icon: TrendingUp, iconColor: '#27AE60', badge: 'Support Credit', isViewSwitch: true, viewName: 'BULL_PUT_CREDIT' },
+        { id: 'sec-bear-call-credit', label: 'Bear Call Credit Spread', icon: TrendingDown, iconColor: '#C0392B', badge: 'Resistance Credit', isViewSwitch: true, viewName: 'BEAR_CALL_CREDIT' },
       ]
     }
   ];
@@ -142,6 +144,11 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
     }
     if (currentView === 'BULL_PUT_CREDIT') {
       setCurrentActive('sec-bull-put-credit');
+      setOpenCategories(prev => ({ ...prev, 'QUANT STRATEGIES': true }));
+      return;
+    }
+    if (currentView === 'BEAR_CALL_CREDIT') {
+      setCurrentActive('sec-bear-call-credit');
       setOpenCategories(prev => ({ ...prev, 'QUANT STRATEGIES': true }));
       return;
     }
