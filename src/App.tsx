@@ -458,6 +458,7 @@ export function App() {
         selectedSymbol={selectedSymbol}
         onSelectSymbol={handleSelectSymbol}
         onReset={handleReset}
+        onGoToDashboard={() => handleSelectView('DASHBOARD', 'sec-summary')}
       />
 
       <div style={{ display: 'flex', width: '100%', minHeight: 'calc(100vh - 70px)' }}>

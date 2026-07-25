@@ -11,13 +11,15 @@ interface HeaderProps {
   selectedSymbol: string;
   onSelectSymbol: (symbol: string, type: 'INDEX' | 'STOCK') => void;
   onReset: () => void;
+  onGoToDashboard?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   metrics,
   selectedSymbol,
   onSelectSymbol,
-  onReset
+  onReset,
+  onGoToDashboard
 }) => {
   return (
     <header style={{
@@ -31,7 +33,11 @@ export const Header: React.FC<HeaderProps> = ({
       gap: '16px'
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+        <div
+          onClick={() => onGoToDashboard && onGoToDashboard()}
+          style={{ display: 'flex', alignItems: 'center', gap: '14px', cursor: 'pointer' }}
+          title="Return to Main Dashboard Market Summary"
+        >
           <div style={{
             backgroundColor: 'var(--accent-gold)',
             color: '#FFF',

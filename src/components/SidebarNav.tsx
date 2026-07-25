@@ -53,6 +53,14 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
   });
 
   const toggleCategory = (title: string) => {
+    if (title === 'OVERVIEW') {
+      if (onSelectView) {
+        onSelectView('DASHBOARD', 'sec-summary');
+      } else {
+        scrollToSection('sec-summary');
+      }
+    }
+
     setOpenCategories(prev => {
       const isCurrentlyOpen = !!prev[title];
       if (isCurrentlyOpen) {
@@ -229,7 +237,14 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
         justifyContent: isCollapsed ? 'center' : 'space-between'
       }}>
         {!isCollapsed && (
-          <span style={{ fontSize: '0.82rem', fontWeight: 800, letterSpacing: '0.5px', color: 'var(--accent-gold-dark)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span
+            onClick={() => {
+              if (onSelectView) onSelectView('DASHBOARD', 'sec-summary');
+              else scrollToSection('sec-summary');
+            }}
+            style={{ fontSize: '0.82rem', fontWeight: 800, letterSpacing: '0.5px', color: 'var(--accent-gold-dark)', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
+            title="Go to Main Dashboard Market Summary"
+          >
             <Activity size={16} /> NAVIGATION
           </span>
         )}
