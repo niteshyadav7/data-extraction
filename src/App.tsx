@@ -3,6 +3,7 @@ import { Header } from './components/Header';
 import { FileUpload } from './components/FileUpload';
 import { ConfigBar } from './components/ConfigBar';
 import { StickyNavBar } from './components/StickyNavBar';
+import { SidebarNav } from './components/SidebarNav';
 import { MarketSummary } from './components/MarketSummary';
 import { OptionChainSummary } from './components/OptionChainSummary';
 import { PCRSection } from './components/PCRSection';
@@ -393,111 +394,117 @@ export function App() {
         onReset={handleReset}
       />
 
-      <main style={{ width: '100%', maxWidth: '100%', margin: '0 auto', padding: '24px 28px' }}>
-        <ConfigBar
-          riskFreeRate={riskFreeRate}
-          onRateChange={handleRiskFreeRateChange}
-          timestamp={metrics?.marketSummary.timestamp || ''}
-          marketSummaryData={metrics?.marketSummary}
-          isLiveSync={isLiveSync}
-          onToggleLiveSync={() => {
-            const nextState = !isLiveSync;
-            setIsLiveSync(nextState);
-            if (nextState) fetchSymbolData(selectedSymbol, selectedType);
-          }}
-          syncInterval={syncInterval}
-          onIntervalChange={setSyncInterval}
-          onManualLiveSync={() => fetchSymbolData(selectedSymbol, selectedType)}
-        />
+      <div style={{ display: 'flex', width: '100%', minHeight: 'calc(100vh - 70px)' }}>
+        {/* Collapsible Sidebar Navigation */}
+        <SidebarNav />
 
-        {metrics && <StickyNavBar />}
+        {/* Main Dashboard Workspace Content */}
+        <main style={{ flex: 1, minWidth: 0, padding: '24px 28px' }}>
+          <ConfigBar
+            riskFreeRate={riskFreeRate}
+            onRateChange={handleRiskFreeRateChange}
+            timestamp={metrics?.marketSummary.timestamp || ''}
+            marketSummaryData={metrics?.marketSummary}
+            isLiveSync={isLiveSync}
+            onToggleLiveSync={() => {
+              const nextState = !isLiveSync;
+              setIsLiveSync(nextState);
+              if (nextState) fetchSymbolData(selectedSymbol, selectedType);
+            }}
+            syncInterval={syncInterval}
+            onIntervalChange={setSyncInterval}
+            onManualLiveSync={() => fetchSymbolData(selectedSymbol, selectedType)}
+          />
 
-        <FileUpload
-          filesState={filesState}
-          onFileSelect={handleFileSelect}
-          onBatchFilesSelect={handleBatchFilesSelect}
-          onProcessFiles={processFiles}
-        />
+          {metrics && <StickyNavBar />}
 
-        {metrics && (
-          <>
-            {/* Table 1: Market Summary */}
-            <div id="sec-summary">
-              <MarketSummary data={metrics.marketSummary} />
-              <OptionChainSummary data={metrics.chainSummary} />
-            </div>
+          <FileUpload
+            filesState={filesState}
+            onFileSelect={handleFileSelect}
+            onBatchFilesSelect={handleBatchFilesSelect}
+            onProcessFiles={processFiles}
+          />
 
-            {/* Table 2 & 3: PCR & Max Pain */}
-            <div id="sec-pcr">
-              <PCRSection data={metrics.pcrAnalysis} />
-              <MaxPainSection data={metrics.maxPain} spotPrice={metrics.marketSummary.spotPrice} />
-            </div>
+          {metrics && (
+            <>
+              {/* Table 1: Market Summary */}
+              <div id="sec-summary">
+                <MarketSummary data={metrics.marketSummary} />
+                <OptionChainSummary data={metrics.chainSummary} />
+              </div>
 
-            {/* Table 4, 5 & 6: Support & Resistance */}
-            <div id="sec-support">
-              <SupportResistance
-                data={metrics.supportResistance}
-                atmCeLtp={metrics.completeChain.find(r => r.strike === metrics.chainSummary.atmStrike)?.ceLtp || 250}
-                atmPeLtp={metrics.completeChain.find(r => r.strike === metrics.chainSummary.atmStrike)?.peLtp || 250}
-              />
-            </div>
+              {/* Table 2 & 3: PCR & Max Pain */}
+              <div id="sec-pcr">
+                <PCRSection data={metrics.pcrAnalysis} />
+                <MaxPainSection data={metrics.maxPain} spotPrice={metrics.marketSummary.spotPrice} />
+              </div>
 
-            {/* Table 7 & 8: OI & Liquidity Analysis */}
-            <div id="sec-oi">
-              <OIAnalysis data={metrics.oiAnalysis} />
-              <LiquiditySection data={metrics.liquidityAnalysis} />
-            </div>
+              {/* Table 4, 5 & 6: Support & Resistance */}
+              <div id="sec-support">
+                <SupportResistance
+                  data={metrics.supportResistance}
+                  atmCeLtp={metrics.completeChain.find(r => r.strike === metrics.chainSummary.atmStrike)?.ceLtp || 250}
+                  atmPeLtp={metrics.completeChain.find(r => r.strike === metrics.chainSummary.atmStrike)?.peLtp || 250}
+                />
+              </div>
 
-            {/* Table 9 & 10: IV & Black-Scholes Greeks */}
-            <div id="sec-greeks">
-              <IVAnalysis data={metrics.ivAnalysis} />
-              <GreeksTableSection
-                data={metrics.greeksTable}
-                atmStrike={metrics.chainSummary.atmStrike}
-                riskFreeRate={metrics.riskFreeRate}
-              />
-            </div>
+              {/* Table 7 & 8: OI & Liquidity Analysis */}
+              <div id="sec-oi">
+                <OIAnalysis data={metrics.oiAnalysis} />
+                <LiquiditySection data={metrics.liquidityAnalysis} />
+              </div>
 
-            {/* Table 11 & 12: Expected Move & Futures */}
-            <div id="sec-expected">
-              <ExpectedMoveSection
-                data={metrics.expectedMove}
-                spotPrice={metrics.marketSummary.spotPrice}
-                daysToExpiry={metrics.marketSummary.daysToExpiry}
-                atmIv={metrics.ivAnalysis.atmIv}
-              />
-              <FuturesAnalysis data={metrics.futuresAnalysis} />
-              <HVSection data={metrics.historicalVolatility} onRefreshYahoo={handleRefreshYahoo} />
-              <HVvsIVSection data={metrics.hvVsIv} />
-            </div>
+              {/* Table 9 & 10: IV & Black-Scholes Greeks */}
+              <div id="sec-greeks">
+                <IVAnalysis data={metrics.ivAnalysis} />
+                <GreeksTableSection
+                  data={metrics.greeksTable}
+                  atmStrike={metrics.chainSummary.atmStrike}
+                  riskFreeRate={metrics.riskFreeRate}
+                />
+              </div>
 
-            {/* Table 15 & 16: Complete Option Chain */}
-            <div id="sec-chain">
-              <MostActiveSection data={metrics.mostActive} />
-              <CompleteOptionChain
-                data={metrics.completeChain}
-                daysToExpiry={metrics.marketSummary.daysToExpiry}
-                riskFreeRate={metrics.riskFreeRate}
-              />
-            </div>
+              {/* Table 11 & 12: Expected Move & Futures */}
+              <div id="sec-expected">
+                <ExpectedMoveSection
+                  data={metrics.expectedMove}
+                  spotPrice={metrics.marketSummary.spotPrice}
+                  daysToExpiry={metrics.marketSummary.daysToExpiry}
+                  atmIv={metrics.ivAnalysis.atmIv}
+                />
+                <FuturesAnalysis data={metrics.futuresAnalysis} />
+                <HVSection data={metrics.historicalVolatility} onRefreshYahoo={handleRefreshYahoo} />
+                <HVvsIVSection data={metrics.hvVsIv} />
+              </div>
 
-            {/* Table 18: Step 18 Dedicated LTP & Reversal Target Calculator */}
-            <div id="sec-ltp">
-              <LtpCalculatorSection
-                optionChain={metrics.completeChain}
-                currentSpot={metrics.marketSummary.spotPrice}
-                daysToExpiry={metrics.marketSummary.daysToExpiry}
-                riskFreeRate={metrics.riskFreeRate}
-              />
-            </div>
+              {/* Table 15 & 16: Complete Option Chain */}
+              <div id="sec-chain">
+                <MostActiveSection data={metrics.mostActive} />
+                <CompleteOptionChain
+                  data={metrics.completeChain}
+                  daysToExpiry={metrics.marketSummary.daysToExpiry}
+                  riskFreeRate={metrics.riskFreeRate}
+                />
+              </div>
 
-            {/* Step 17: Data Audit Warnings */}
-            <div id="sec-warnings">
-              <WarningsSection warnings={metrics.warnings} />
-            </div>
-          </>
-        )}
-      </main>
+              {/* Table 18: Step 18 Dedicated LTP & Reversal Target Calculator */}
+              <div id="sec-ltp">
+                <LtpCalculatorSection
+                  optionChain={metrics.completeChain}
+                  currentSpot={metrics.marketSummary.spotPrice}
+                  daysToExpiry={metrics.marketSummary.daysToExpiry}
+                  riskFreeRate={metrics.riskFreeRate}
+                />
+              </div>
+
+              {/* Step 17: Data Audit Warnings */}
+              <div id="sec-warnings">
+                <WarningsSection warnings={metrics.warnings} />
+              </div>
+            </>
+          )}
+        </main>
+      </div>
     </div>
   );
 }
