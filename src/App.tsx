@@ -24,6 +24,7 @@ import { WarningsSection } from './components/WarningsSection';
 import { FiiDiiAnalysis } from './components/FiiDiiAnalysis';
 import { SmartStrategyRecommendationBanner } from './components/SmartStrategyRecommendationBanner';
 import { LtpStrategySection } from './components/LtpStrategySection';
+import { BacktestStudioSection } from './components/BacktestStudioSection';
 
 import type {
   DashboardMetrics,
@@ -434,9 +435,9 @@ export function App() {
     setMetrics(null);
   };
 
-  const [currentView, setCurrentView] = useState<'DASHBOARD' | 'STRATEGY_HUB' | 'LTP_CALCULATOR' | 'LTP_STRATEGY' | 'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BEAR_CALL_CREDIT' | 'SHORT_STRANGLE' | 'RATIO_PUT_SPREAD' | 'CALENDAR_SPREAD'>('DASHBOARD');
+  const [currentView, setCurrentView] = useState<'DASHBOARD' | 'STRATEGY_HUB' | 'LTP_CALCULATOR' | 'LTP_STRATEGY' | 'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BEAR_CALL_CREDIT' | 'SHORT_STRANGLE' | 'RATIO_PUT_SPREAD' | 'CALENDAR_SPREAD' | 'HISTORICAL_BACKTEST'>('DASHBOARD');
 
-  const handleSelectView = (view: 'DASHBOARD' | 'STRATEGY_HUB' | 'LTP_CALCULATOR' | 'LTP_STRATEGY' | 'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BEAR_CALL_CREDIT' | 'SHORT_STRANGLE' | 'RATIO_PUT_SPREAD' | 'CALENDAR_SPREAD', sectionId?: string) => {
+  const handleSelectView = (view: 'DASHBOARD' | 'STRATEGY_HUB' | 'LTP_CALCULATOR' | 'LTP_STRATEGY' | 'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BEAR_CALL_CREDIT' | 'SHORT_STRANGLE' | 'RATIO_PUT_SPREAD' | 'CALENDAR_SPREAD' | 'HISTORICAL_BACKTEST', sectionId?: string) => {
     setCurrentView(view);
     if (view === 'DASHBOARD') {
       if (sectionId && sectionId !== 'top') {
@@ -581,6 +582,11 @@ export function App() {
             </div>
           ) : currentView === 'LTP_STRATEGY' ? (
             <LtpStrategySection
+              metrics={metrics}
+              onBackToDashboard={() => setCurrentView('DASHBOARD')}
+            />
+          ) : currentView === 'HISTORICAL_BACKTEST' ? (
+            <BacktestStudioSection
               metrics={metrics}
               onBackToDashboard={() => setCurrentView('DASHBOARD')}
             />

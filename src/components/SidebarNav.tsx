@@ -27,13 +27,13 @@ interface NavSection {
   iconColor: string;
   badge?: string;
   isViewSwitch?: boolean;
-  viewName?: 'DASHBOARD' | 'STRATEGY_HUB' | 'LTP_CALCULATOR' | 'LTP_STRATEGY' | 'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BEAR_CALL_CREDIT' | 'SHORT_STRANGLE' | 'RATIO_PUT_SPREAD' | 'CALENDAR_SPREAD';
+  viewName?: 'DASHBOARD' | 'STRATEGY_HUB' | 'LTP_CALCULATOR' | 'LTP_STRATEGY' | 'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BEAR_CALL_CREDIT' | 'SHORT_STRANGLE' | 'RATIO_PUT_SPREAD' | 'CALENDAR_SPREAD' | 'HISTORICAL_BACKTEST';
 }
 
 interface SidebarNavProps {
   activeSection?: string;
-  currentView?: 'DASHBOARD' | 'STRATEGY_HUB' | 'LTP_CALCULATOR' | 'LTP_STRATEGY' | 'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BEAR_CALL_CREDIT' | 'SHORT_STRANGLE' | 'RATIO_PUT_SPREAD' | 'CALENDAR_SPREAD';
-  onSelectView?: (view: 'DASHBOARD' | 'STRATEGY_HUB' | 'LTP_CALCULATOR' | 'LTP_STRATEGY' | 'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BEAR_CALL_CREDIT' | 'SHORT_STRANGLE' | 'RATIO_PUT_SPREAD' | 'CALENDAR_SPREAD', sectionId?: string) => void;
+  currentView?: 'DASHBOARD' | 'STRATEGY_HUB' | 'LTP_CALCULATOR' | 'LTP_STRATEGY' | 'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BEAR_CALL_CREDIT' | 'SHORT_STRANGLE' | 'RATIO_PUT_SPREAD' | 'CALENDAR_SPREAD' | 'HISTORICAL_BACKTEST';
+  onSelectView?: (view: 'DASHBOARD' | 'STRATEGY_HUB' | 'LTP_CALCULATOR' | 'LTP_STRATEGY' | 'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BEAR_CALL_CREDIT' | 'SHORT_STRANGLE' | 'RATIO_PUT_SPREAD' | 'CALENDAR_SPREAD' | 'HISTORICAL_BACKTEST', sectionId?: string) => void;
 }
 
 export const SidebarNav: React.FC<SidebarNavProps> = ({
@@ -114,6 +114,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
       title: 'QUANT TOOLS',
       categoryIcon: Table,
       items: [
+        { id: 'sec-backtest', label: 'Backtest Studio', icon: Award, iconColor: '#8E44AD', badge: 'Historical', isViewSwitch: true, viewName: 'HISTORICAL_BACKTEST' },
         { id: 'sec-chain', label: 'Option Chain', icon: Table, iconColor: '#16A085' },
         { id: 'sec-warnings', label: 'Audit Warnings', icon: AlertTriangle, iconColor: '#E67E22' },
       ]
@@ -178,6 +179,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
       let activeId = 'sec-strategy';
       if (currentView === 'LTP_CALCULATOR') activeId = 'sec-ltp';
       else if (currentView === 'LTP_STRATEGY') activeId = 'sec-ltp-strategy';
+      else if (currentView === 'HISTORICAL_BACKTEST') activeId = 'sec-backtest';
       else if (currentView === 'IRON_CONDOR') activeId = 'sec-iron-condor';
       else if (currentView === 'IRON_BUTTERFLY') activeId = 'sec-iron-butterfly';
       else if (currentView === 'BULL_PUT_CREDIT') activeId = 'sec-bull-put-credit';
@@ -187,14 +189,15 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
       else if (currentView === 'CALENDAR_SPREAD') activeId = 'sec-calendar-spread';
 
       const isLtpEngine = currentView === 'LTP_CALCULATOR' || currentView === 'LTP_STRATEGY';
+      const isQuantTools = currentView === 'HISTORICAL_BACKTEST';
 
       setCurrentActive(activeId);
       setOpenCategories({
         'OVERVIEW': false,
         'DERIVATIVES': false,
         'LTP ENGINE': isLtpEngine,
-        'QUANT TOOLS': false,
-        'QUANT STRATEGIES': !isLtpEngine
+        'QUANT TOOLS': isQuantTools,
+        'QUANT STRATEGIES': !isLtpEngine && !isQuantTools
       });
       return;
     }
