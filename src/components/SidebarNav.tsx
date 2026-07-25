@@ -13,7 +13,6 @@ import {
   Calculator,
   AlertTriangle,
   Briefcase,
-  Cpu,
   Activity,
   Award,
   Layers
@@ -91,7 +90,6 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
       categoryIcon: Layers,
       items: [
         { id: 'sec-iron-condor', label: 'Iron Condor Strategy', icon: Briefcase, iconColor: '#27AE60', badge: 'Dynamic', isViewSwitch: true, viewName: 'IRON_CONDOR' },
-        { id: 'sec-strategy', label: 'Strategy Studio', icon: Cpu, iconColor: '#9B59B6', badge: 'All', isViewSwitch: true, viewName: 'STRATEGY_HUB' },
       ]
     }
   ];
