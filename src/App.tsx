@@ -573,6 +573,7 @@ export function App() {
               expectedMoveBounds={metrics ? { upper: metrics.expectedMove.upperBound, lower: metrics.expectedMove.lowerBound } : undefined}
               initialTab="ALL"
               onBackToDashboard={() => setCurrentView('DASHBOARD')}
+              onSelectStrategyTab={(tab) => setCurrentView(tab as any)}
             />
           ) : (
             <>

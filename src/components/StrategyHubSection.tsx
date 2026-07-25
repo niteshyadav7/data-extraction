@@ -27,6 +27,7 @@ import {
   type StrategyResult
 } from '../utils/strategyEngine';
 import { TradeAdjustmentEngine } from './TradeAdjustmentEngine';
+import { StrategyComparisonStudio } from './StrategyComparisonStudio';
 
 interface StrategyHubSectionProps {
   optionChain: any[];
@@ -38,6 +39,7 @@ interface StrategyHubSectionProps {
   expectedMoveBounds?: { upper: number; lower: number };
   initialTab?: 'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BEAR_CALL_CREDIT' | 'SHORT_STRANGLE' | 'RATIO_PUT_SPREAD' | 'CALENDAR_SPREAD' | 'BULL_CALL' | 'BEAR_PUT' | 'ALL';
   onBackToDashboard?: () => void;
+  onSelectStrategyTab?: (tab: string) => void;
 }
 
 export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
@@ -49,10 +51,11 @@ export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
   maxPainStrike,
   expectedMoveBounds,
   initialTab = 'IRON_CONDOR',
-  onBackToDashboard
+  onBackToDashboard,
+  onSelectStrategyTab
 }) => {
-  const [activeTab, setActiveTab] = useState<'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BEAR_CALL_CREDIT' | 'SHORT_STRANGLE' | 'RATIO_PUT_SPREAD' | 'CALENDAR_SPREAD' | 'BULL_CALL' | 'BEAR_PUT'>(
-    initialTab === 'ALL' || initialTab === 'IRON_CONDOR' ? 'IRON_CONDOR' : initialTab
+  const [activeTab, setActiveTab] = useState<'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BEAR_CALL_CREDIT' | 'SHORT_STRANGLE' | 'RATIO_PUT_SPREAD' | 'CALENDAR_SPREAD' | 'BULL_CALL' | 'BEAR_PUT' | 'ALL'>(
+    initialTab
   );
   const [lotSize, setLotSize] = useState<number>(getDefaultLotSizeForSymbol(selectedSymbol));
   const [wingWidth, setWingWidth] = useState<number>(2);
@@ -64,9 +67,7 @@ export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
 
   // Sync activeTab if initialTab changes
   useEffect(() => {
-    if (initialTab !== 'ALL') {
-      setActiveTab(initialTab);
-    }
+    setActiveTab(initialTab);
   }, [initialTab]);
 
   if (!optionChain || optionChain.length < 5 || currentSpot <= 0) {
@@ -164,6 +165,35 @@ export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
     result = calculateBullCallSpread(optionChain, currentSpot, selectedSymbol, lotSize);
   } else if (activeTab === 'BEAR_PUT') {
     result = calculateBearPutSpread(optionChain, currentSpot, selectedSymbol, lotSize);
+  }
+
+  if (activeTab === 'ALL') {
+    return (
+      <div>
+        {onBackToDashboard && (
+          <button
+            onClick={onBackToDashboard}
+            className="btn-secondary"
+            style={{ fontSize: '0.82rem', padding: '6px 14px', marginBottom: '16px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+          >
+            <ArrowLeft size={16} /> ← Back to Main Dashboard Overview
+          </button>
+        )}
+        <StrategyComparisonStudio
+          optionChain={optionChain}
+          nextExpiryOptionChain={nextExpiryOptionChain}
+          currentSpot={currentSpot}
+          selectedSymbol={selectedSymbol}
+          supportResistance={supportResistance}
+          maxPainStrike={maxPainStrike}
+          expectedMoveBounds={expectedMoveBounds}
+          onSelectStrategy={(key) => {
+            setActiveTab(key as any);
+            if (onSelectStrategyTab) onSelectStrategyTab(key);
+          }}
+        />
+      </div>
+    );
   }
 
   if (!result) return null;
