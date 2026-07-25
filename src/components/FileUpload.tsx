@@ -108,8 +108,8 @@ export const FileUpload: React.FC<FileUploadProps> = ({
 
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-        gap: '16px',
+        gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
+        gap: '10px',
         marginBottom: '20px'
       }}>
         {fileConfigs.map((config) => (
@@ -119,24 +119,25 @@ export const FileUpload: React.FC<FileUploadProps> = ({
               border: `1.5px dashed ${config.file ? 'var(--color-green)' : 'var(--border-color)'}`,
               backgroundColor: config.file ? 'rgba(76, 175, 80, 0.04)' : 'var(--bg-main)',
               borderRadius: '8px',
-              padding: '16px',
+              padding: '12px 8px',
               textAlign: 'center',
-              transition: 'all 0.2s ease'
+              transition: 'all 0.2s ease',
+              minWidth: 0
             }}
           >
-            <div style={{ marginBottom: '10px' }}>
+            <div style={{ marginBottom: '6px' }}>
               {config.file ? (
-                <CheckCircle size={32} color="var(--color-green)" />
+                <CheckCircle size={26} color="var(--color-green)" />
               ) : (
-                <FilePlus size={32} color="var(--text-muted)" />
+                <FilePlus size={26} color="var(--text-muted)" />
               )}
             </div>
 
-            <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-main)', marginBottom: '4px' }}>
+            <div style={{ fontWeight: 700, fontSize: '0.8rem', color: 'var(--text-main)', marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {config.label}
             </div>
 
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '12px' }}>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '10px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {config.desc}
             </div>
 
