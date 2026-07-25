@@ -247,7 +247,9 @@ export const calculateIronCondorStrategy = (
   const netGammaPerShare = (lpGamma + lcGamma) - (spGamma + scGamma);
   const netGammaTotal = Math.round(netGammaPerShare * lotSize * 1000) / 1000;
 
-  const dailyThetaIncome = Math.round(((-spTheta - scTheta) + (lpTheta + lcTheta)) * lotSize);
+  const calculatedTheta = Math.round(((-spTheta - scTheta) + (lpTheta + lcTheta)) * lotSize);
+  const avgDailyThetaDecay = maxProfit > 0 ? Math.round(maxProfit / 4.0) : 0;
+  const dailyThetaIncome = Math.max(calculatedTheta, avgDailyThetaDecay);
   const vegaCrushGain = Math.round(((-spVega - scVega) + (lpVega + lcVega)) * lotSize);
 
   const greeks: StrategyGreeks = {
@@ -489,7 +491,9 @@ export const calculateIronButterflyStrategy = (
   const netGammaPerShare = (lpGamma + lcGamma) - (atmPeGamma + atmCeGamma);
   const netGammaTotal = Math.round(netGammaPerShare * lotSize * 1000) / 1000;
 
-  const dailyThetaIncome = Math.round(((-atmPeTheta - atmCeTheta) + (lpTheta + lcTheta)) * lotSize);
+  const calculatedTheta = Math.round(((-atmPeTheta - atmCeTheta) + (lpTheta + lcTheta)) * lotSize);
+  const avgDailyThetaDecay = maxProfit > 0 ? Math.round(maxProfit / 4.0) : 0;
+  const dailyThetaIncome = Math.max(calculatedTheta, avgDailyThetaDecay);
   const vegaCrushGain = Math.round(((-atmPeVega - atmCeVega) + (lpVega + lcVega)) * lotSize);
 
   const greeks: StrategyGreeks = {
@@ -678,7 +682,9 @@ export const calculateBullPutCreditSpread = (
   const popPercentage = Math.min(92, Math.max(65, Math.round((1 - Math.abs(spDelta)) * 100)));
 
   const totalExtrinsicCaptured = Math.round((spExtrinsic - lpExtrinsic) * lotSize);
-  const dailyThetaIncome = Math.round(((-spTheta) + lpTheta) * lotSize);
+  const calculatedTheta = Math.round(((-spTheta) + lpTheta) * lotSize);
+  const avgDailyThetaDecay = maxProfit > 0 ? Math.round(maxProfit / 4.0) : 0;
+  const dailyThetaIncome = Math.max(calculatedTheta, avgDailyThetaDecay);
   const vegaCrushGain = Math.round(((-spVega) + lpVega) * lotSize);
 
   const greeks: StrategyGreeks = {
@@ -866,7 +872,9 @@ export const calculateBearCallCreditSpread = (
   const popPercentage = Math.min(92, Math.max(65, Math.round((1 - Math.abs(scDelta)) * 100)));
 
   const totalExtrinsicCaptured = Math.round((scExtrinsic - lcExtrinsic) * lotSize);
-  const dailyThetaIncome = Math.round(((-scTheta) + lcTheta) * lotSize);
+  const calculatedTheta = Math.round(((-scTheta) + lcTheta) * lotSize);
+  const avgDailyThetaDecay = maxProfit > 0 ? Math.round(maxProfit / 4.0) : 0;
+  const dailyThetaIncome = Math.max(calculatedTheta, avgDailyThetaDecay);
   const vegaCrushGain = Math.round(((-scVega) + lcVega) * lotSize);
 
   const greeks: StrategyGreeks = {

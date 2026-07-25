@@ -32,7 +32,7 @@ const cdf = (x: number): number => {
 };
 
 /**
- * Calculates Black-Scholes Greeks for Call or Put options.
+ * Calculates Black-Scholes Greeks for Call or Put options with normalized inputs.
  */
 export const calculateGreeks = (
   S: number,
@@ -43,10 +43,13 @@ export const calculateGreeks = (
   optionType: 'CE' | 'PE'
 ): OptionGreeks => {
   if (T <= 0) T = 0.0001;
-  if (sigma <= 0) sigma = 0.01;
+  
+  // Normalize rate (e.g. 5.25 -> 0.0525) and IV (e.g. 14.5 -> 0.145)
+  const rate = r > 0.5 ? r / 100.0 : r;
+  const vol = Math.max(0.01, sigma > 1.0 ? sigma / 100.0 : sigma);
 
-  const d1 = (Math.log(S / K) + (r + 0.5 * sigma * sigma) * T) / (sigma * Math.sqrt(T));
-  const d2 = d1 - sigma * Math.sqrt(T);
+  const d1 = (Math.log(S / K) + (rate + 0.5 * vol * vol) * T) / (vol * Math.sqrt(T));
+  const d2 = d1 - vol * Math.sqrt(T);
 
   const nPrimeD1 = pdf(d1);
 
@@ -56,15 +59,15 @@ export const calculateGreeks = (
 
   if (optionType === 'CE') {
     delta = cdf(d1);
-    theta = (-(S * nPrimeD1 * sigma) / (2 * Math.sqrt(T)) - r * K * Math.exp(-r * T) * cdf(d2)) / 365.0;
-    rho = (K * T * Math.exp(-r * T) * cdf(d2)) / 100.0;
+    theta = (-(S * nPrimeD1 * vol) / (2 * Math.sqrt(T)) - rate * K * Math.exp(-rate * T) * cdf(d2)) / 365.0;
+    rho = (K * T * Math.exp(-rate * T) * cdf(d2)) / 100.0;
   } else {
     delta = cdf(d1) - 1.0;
-    theta = (-(S * nPrimeD1 * sigma) / (2 * Math.sqrt(T)) + r * K * Math.exp(-r * T) * cdf(-d2)) / 365.0;
-    rho = (-K * T * Math.exp(-r * T) * cdf(-d2)) / 100.0;
+    theta = (-(S * nPrimeD1 * vol) / (2 * Math.sqrt(T)) + rate * K * Math.exp(-rate * T) * cdf(-d2)) / 365.0;
+    rho = (-K * T * Math.exp(-rate * T) * cdf(-d2)) / 100.0;
   }
 
-  const gamma = nPrimeD1 / (S * sigma * Math.sqrt(T));
+  const gamma = nPrimeD1 / (S * vol * Math.sqrt(T));
   const vega = (S * nPrimeD1 * Math.sqrt(T)) / 100.0;
 
   return {
