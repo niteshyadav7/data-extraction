@@ -407,7 +407,6 @@ export const calculateIronButterflyStrategy = (
   const lotSize = customLotSize && customLotSize > 0 ? customLotSize : getDefaultLotSizeForSymbol(symbol);
   const sorted = [...optionChain].sort((a, b) => (a.strikePrice || a.strike) - (b.strikePrice || b.strike));
 
-  // Find ATM Index (or Max Pain Strike if available)
   let atmIndex = 0;
   let minDiff = Infinity;
   const targetAtmPrice = (maxPainStrike && maxPainStrike > 0) ? maxPainStrike : spotPrice;
@@ -481,7 +480,6 @@ export const calculateIronButterflyStrategy = (
   const lowerBreakeven = Math.round((atmStrike - netCreditPerShare) * 100) / 100;
   const riskRewardRatio = maxProfit > 0 ? Math.round((maxLoss / maxProfit) * 100) / 100 : 0;
 
-  // POP for Iron Butterfly ~ 55% - 65%
   const popPercentage = Math.min(75, Math.max(40, Math.round((netCreditPerShare / spreadWidth) * 100)));
   const totalExtrinsicCaptured = Math.round(((atmCeExtrinsic + atmPeExtrinsic) - (lcExtrinsic + lpExtrinsic)) * lotSize);
 
@@ -582,6 +580,194 @@ export const calculateIronButterflyStrategy = (
       eor1: lcStrike,
       eor2: lcStrike + (lcStrike - atmStrike),
       maxPain: atmStrike
+    },
+    payoffRows
+  };
+};
+
+/**
+ * Strategy #3: 🛡️ Bull Put Credit Spread (Support Credit Reversal)
+ */
+export const calculateBullPutCreditSpread = (
+  optionChain: any[],
+  spotPrice: number,
+  symbol: string = 'NIFTY',
+  customLotSize?: number,
+  wingWidthStrikes: number = 2,
+  supportResistance?: { top5Support: { strike: number }[]; top5Resistance: { strike: number }[] }
+): StrategyResult | null => {
+  if (!optionChain || optionChain.length < 5 || spotPrice <= 0) return null;
+
+  const lotSize = customLotSize && customLotSize > 0 ? customLotSize : getDefaultLotSizeForSymbol(symbol);
+  const sorted = [...optionChain].sort((a, b) => (a.strikePrice || a.strike) - (b.strikePrice || b.strike));
+
+  let atmIndex = 0;
+  let minDiff = Infinity;
+  sorted.forEach((row, idx) => {
+    const strike = row.strikePrice || row.strike || 0;
+    const diff = Math.abs(strike - spotPrice);
+    if (diff < minDiff) {
+      minDiff = diff;
+      atmIndex = idx;
+    }
+  });
+
+  const atmRow = sorted[atmIndex];
+  const atmPeLtp = atmRow.peLtp || 0;
+  const highestPutStrike = supportResistance?.top5Support?.[0]?.strike || 0;
+  const eos1 = highestPutStrike > 0 ? highestPutStrike - atmPeLtp : 0;
+
+  let shortPutIndex = Math.max(0, atmIndex - 2);
+  if (eos1 > 0) {
+    let bestIdx = shortPutIndex;
+    let minErr = Infinity;
+    sorted.forEach((row, idx) => {
+      const s = row.strikePrice || row.strike;
+      if (s <= eos1) {
+        const err = Math.abs(s - eos1);
+        if (err < minErr) {
+          minErr = err;
+          bestIdx = idx;
+        }
+      }
+    });
+    shortPutIndex = bestIdx;
+  }
+
+  const longPutIndex = Math.max(0, shortPutIndex - wingWidthStrikes);
+
+  const shortPutRow = sorted[shortPutIndex];
+  const longPutRow = sorted[longPutIndex];
+
+  const spStrike = shortPutRow.strikePrice || shortPutRow.strike;
+  const lpStrike = longPutRow.strikePrice || longPutRow.strike;
+
+  const spLtp = shortPutRow.peLtp || 0;
+  const lpLtp = longPutRow.peLtp || 0;
+
+  const spDelta = shortPutRow.peDelta !== undefined ? shortPutRow.peDelta : -0.25;
+  const lpDelta = longPutRow.peDelta !== undefined ? longPutRow.peDelta : -0.10;
+
+  const spTheta = shortPutRow.peTheta !== undefined ? shortPutRow.peTheta : -5;
+  const lpTheta = longPutRow.peTheta !== undefined ? longPutRow.peTheta : -2;
+
+  const spVega = shortPutRow.peVega !== undefined ? shortPutRow.peVega : 10;
+  const lpVega = longPutRow.peVega !== undefined ? longPutRow.peVega : 4;
+
+  const spGamma = shortPutRow.peGamma !== undefined ? shortPutRow.peGamma : 0.001;
+  const lpGamma = longPutRow.peGamma !== undefined ? longPutRow.peGamma : 0.0005;
+
+  const spExtrinsic = Math.max(0, spLtp - Math.max(0, spStrike - spotPrice));
+  const lpExtrinsic = Math.max(0, lpLtp - Math.max(0, lpStrike - spotPrice));
+
+  const legs: StrategyLeg[] = [
+    { action: 'BUY', optionType: 'PE', strike: lpStrike, ltp: lpLtp, delta: lpDelta, gamma: lpGamma, theta: lpTheta, vega: lpVega, iv: longPutRow.peIv || 0, extrinsicValue: lpExtrinsic, role: 'Long Put Protection' },
+    { action: 'SELL', optionType: 'PE', strike: spStrike, ltp: spLtp, delta: spDelta, gamma: spGamma, theta: spTheta, vega: spVega, iv: shortPutRow.peIv || 0, extrinsicValue: spExtrinsic, role: 'Short Put (EOS1 Support)' }
+  ];
+
+  const netCreditPerShare = Math.max(0, Math.round((spLtp - lpLtp) * 100) / 100);
+  const netCreditTotal = Math.round(netCreditPerShare * lotSize);
+
+  const spreadWidth = spStrike - lpStrike;
+  const maxProfit = netCreditTotal;
+  const maxLossPerShare = Math.max(0, spreadWidth - netCreditPerShare);
+  const maxLoss = Math.round(maxLossPerShare * lotSize);
+
+  const lowerBreakeven = Math.round((spStrike - netCreditPerShare) * 100) / 100;
+  const riskRewardRatio = maxProfit > 0 ? Math.round((maxLoss / maxProfit) * 100) / 100 : 0;
+  const popPercentage = Math.min(92, Math.max(65, Math.round((1 - Math.abs(spDelta)) * 100)));
+
+  const totalExtrinsicCaptured = Math.round((spExtrinsic - lpExtrinsic) * lotSize);
+  const dailyThetaIncome = Math.round(((-spTheta) + lpTheta) * lotSize);
+  const vegaCrushGain = Math.round(((-spVega) + lpVega) * lotSize);
+
+  const greeks: StrategyGreeks = {
+    netDelta: Math.round((lpDelta - spDelta) * lotSize * 100) / 100,
+    netGamma: Math.round((lpGamma - spGamma) * lotSize * 1000) / 1000,
+    dailyThetaIncome: Math.max(0, dailyThetaIncome),
+    vegaCrushGain
+  };
+
+  const healthScore: StrategyInstitutionalScore = {
+    score: 88,
+    rating: 'EXCELLENT',
+    reversalAlignmentText: `Short Put (₹${spStrike}) placed at/below EOS1 Primary Support (₹${Math.round(eos1)})`,
+    expectedMoveText: `Lower Breakeven at ₹${lowerBreakeven}`
+  };
+
+  const decisionIntelligence: StrategyDecisionIntelligence = {
+    executiveSummary: `Bullish Put Credit Spread on ${symbol.toUpperCase()} supported by put writing at EOS1 (₹${Math.round(eos1)}). Short Put (₹${spStrike}) collects +₹${maxProfit.toLocaleString('en-IN')} upfront net credit with a high ${popPercentage}% POP and defined downside risk.`,
+    confluenceScore: 88,
+    confidenceRating: 'HIGH CONFIDENCE',
+    pros: [
+      `High Probability of Profit (${popPercentage}% POP) with Short Put sitting below EOS1 Primary Support (₹${Math.round(eos1)}).`,
+      `Upfront Net Credit collection (+₹${maxProfit.toLocaleString('en-IN')}) for lot size ${lotSize}.`,
+      `Positive Delta bias (Net Δ: +${greeks.netDelta}) capturing bullish/neutral market momentum.`,
+      `Positive daily Theta income (+₹${dailyThetaIncome}/day) benefiting from time decay.`,
+      `100% defined capped risk of ₹${maxLoss.toLocaleString('en-IN')} via protective long put.`
+    ],
+    cons: [
+      `Max Risk (₹${maxLoss.toLocaleString('en-IN')}) exceeds Net Credit collected if market experiences sharp bearish breakdown.`,
+      `Requires spot to remain above lower breakeven ₹${lowerBreakeven} through expiry.`
+    ],
+    executionPlan: {
+      entryZone: `Spot above EOS1 support (near ₹${spotPrice.toLocaleString('en-IN')}) on bullish momentum.`,
+      profitTarget: `Exit at 60% - 85% max profit (harvest +₹${Math.round(maxProfit * 0.75).toLocaleString('en-IN')} profit).`,
+      adjustmentTrigger: `Exit or roll if spot breaches Short Put strike (₹${spStrike}).`
+    }
+  };
+
+  const payoffRows: PayoffRow[] = [];
+  const minSpot = Math.round(lpStrike * 0.96);
+  const maxSpot = Math.round(spStrike * 1.06);
+  const step = Math.max(5, Math.round((maxSpot - minSpot) / 15));
+
+  for (let s = minSpot; s <= maxSpot; s += step) {
+    const putShortLoss = Math.max(0, spStrike - s);
+    const putLongGain = Math.max(0, lpStrike - s);
+
+    const netPayoffPerShare = netCreditPerShare - putShortLoss + putLongGain;
+    const pnl = Math.round(netPayoffPerShare * lotSize);
+    const pnlPct = maxLoss > 0 ? Math.round((pnl / maxLoss) * 100) : 0;
+
+    let tag: string | undefined;
+    if (eos1 > 0 && Math.abs(s - eos1) < step / 2) tag = 'EOS1 PRIMARY SUPPORT';
+
+    payoffRows.push({
+      spot: s,
+      pnl,
+      pnlPct,
+      isCurrentSpot: Math.abs(s - spotPrice) < step / 2,
+      isBreakeven: Math.abs(s - lowerBreakeven) < step / 2,
+      isEos1: eos1 > 0 && Math.abs(s - eos1) < step / 2,
+      tag
+    });
+  }
+
+  return {
+    strategyName: 'Bull Put Credit Spread (Support Credit)',
+    symbol: symbol.toUpperCase(),
+    spotPrice,
+    lotSize,
+    legs,
+    netCreditPerShare,
+    netDebitPerShare: 0,
+    maxProfit,
+    maxLoss,
+    upperBreakeven: spStrike,
+    lowerBreakeven,
+    riskRewardRatio,
+    popPercentage,
+    totalExtrinsicCaptured,
+    greeks,
+    healthScore,
+    decisionIntelligence,
+    reversalLevels: {
+      eos1: Math.round(eos1),
+      eos2: lpStrike,
+      eor1: spStrike + spreadWidth,
+      eor2: spStrike + (spreadWidth * 2),
+      maxPain: spStrike
     },
     payoffRows
   };

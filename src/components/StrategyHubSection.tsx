@@ -16,6 +16,7 @@ import {
 import {
   calculateIronCondorStrategy,
   calculateIronButterflyStrategy,
+  calculateBullPutCreditSpread,
   calculateBullCallSpread,
   calculateBearPutSpread,
   getDefaultLotSizeForSymbol,
@@ -29,7 +30,7 @@ interface StrategyHubSectionProps {
   supportResistance?: any;
   maxPainStrike?: number;
   expectedMoveBounds?: { upper: number; lower: number };
-  initialTab?: 'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_CALL' | 'BEAR_PUT' | 'ALL';
+  initialTab?: 'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BULL_CALL' | 'BEAR_PUT' | 'ALL';
   onBackToDashboard?: () => void;
 }
 
@@ -43,7 +44,7 @@ export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
   initialTab = 'IRON_CONDOR',
   onBackToDashboard
 }) => {
-  const [activeTab, setActiveTab] = useState<'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_CALL' | 'BEAR_PUT'>(
+  const [activeTab, setActiveTab] = useState<'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BULL_CALL' | 'BEAR_PUT'>(
     initialTab === 'ALL' || initialTab === 'IRON_CONDOR' ? 'IRON_CONDOR' : initialTab
   );
   const [lotSize, setLotSize] = useState<number>(getDefaultLotSizeForSymbol(selectedSymbol));
@@ -109,6 +110,15 @@ export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
       lotSize,
       wingWidth,
       maxPainStrike
+    );
+  } else if (activeTab === 'BULL_PUT_CREDIT') {
+    result = calculateBullPutCreditSpread(
+      optionChain,
+      currentSpot,
+      selectedSymbol,
+      lotSize,
+      wingWidth,
+      supportResistance
     );
   } else if (activeTab === 'BULL_CALL') {
     result = calculateBullCallSpread(optionChain, currentSpot, selectedSymbol, lotSize);
@@ -205,6 +215,26 @@ export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
           }}
         >
           <Award size={16} /> 🦋 Iron Butterfly (Max Pain Pinning)
+        </button>
+
+        <button
+          onClick={() => setActiveTab('BULL_PUT_CREDIT')}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '10px 18px',
+            borderRadius: '8px',
+            fontSize: '0.88rem',
+            fontWeight: 700,
+            cursor: 'pointer',
+            backgroundColor: activeTab === 'BULL_PUT_CREDIT' ? 'var(--color-green)' : 'var(--bg-main)',
+            color: activeTab === 'BULL_PUT_CREDIT' ? '#FFF' : 'var(--text-main)',
+            border: `1.5px solid ${activeTab === 'BULL_PUT_CREDIT' ? 'var(--color-green)' : 'var(--border-color)'}`,
+            transition: 'all 0.15s ease'
+          }}
+        >
+          <TrendingUp size={16} /> 🛡️ Bull Put Credit Spread (Support Credit)
         </button>
 
         <button
@@ -413,8 +443,8 @@ export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
           />
         </div>
 
-        {/* Wing Protection Width (Iron Condor & Iron Butterfly) */}
-        {(activeTab === 'IRON_CONDOR' || activeTab === 'IRON_BUTTERFLY') && (
+        {/* Wing Protection Width (Iron Condor, Iron Butterfly, Bull Put Credit) */}
+        {(activeTab === 'IRON_CONDOR' || activeTab === 'IRON_BUTTERFLY' || activeTab === 'BULL_PUT_CREDIT') && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)' }}>
               Wing Protection Width:

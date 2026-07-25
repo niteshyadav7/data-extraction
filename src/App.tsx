@@ -394,9 +394,9 @@ export function App() {
     setMetrics(null);
   };
 
-  const [currentView, setCurrentView] = useState<'DASHBOARD' | 'STRATEGY_HUB' | 'IRON_CONDOR' | 'IRON_BUTTERFLY'>('DASHBOARD');
+  const [currentView, setCurrentView] = useState<'DASHBOARD' | 'STRATEGY_HUB' | 'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT'>('DASHBOARD');
 
-  const handleSelectView = (view: 'DASHBOARD' | 'STRATEGY_HUB' | 'IRON_CONDOR' | 'IRON_BUTTERFLY', sectionId?: string) => {
+  const handleSelectView = (view: 'DASHBOARD' | 'STRATEGY_HUB' | 'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT', sectionId?: string) => {
     setCurrentView(view);
     if (view === 'DASHBOARD' && sectionId) {
       setTimeout(() => {
@@ -466,6 +466,17 @@ export function App() {
               maxPainStrike={metrics?.maxPain.maxPainStrike}
               expectedMoveBounds={metrics ? { upper: metrics.expectedMove.upperBound, lower: metrics.expectedMove.lowerBound } : undefined}
               initialTab="IRON_BUTTERFLY"
+              onBackToDashboard={() => setCurrentView('DASHBOARD')}
+            />
+          ) : currentView === 'BULL_PUT_CREDIT' ? (
+            <StrategyHubSection
+              optionChain={metrics?.completeChain || []}
+              currentSpot={metrics?.marketSummary.spotPrice || 0}
+              selectedSymbol={selectedSymbol}
+              supportResistance={metrics?.supportResistance}
+              maxPainStrike={metrics?.maxPain.maxPainStrike}
+              expectedMoveBounds={metrics ? { upper: metrics.expectedMove.upperBound, lower: metrics.expectedMove.lowerBound } : undefined}
+              initialTab="BULL_PUT_CREDIT"
               onBackToDashboard={() => setCurrentView('DASHBOARD')}
             />
           ) : currentView === 'STRATEGY_HUB' ? (
