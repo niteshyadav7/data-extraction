@@ -1,5 +1,5 @@
 import Papa from 'papaparse';
-import type { RawOptionChainRow, RawFuturesRow, RawOptRow, DataWarnings } from '../types';
+import type { RawOptionChainRow, RawFuturesRow, RawOptRow, DataWarnings, FiiDiiParticipantRow, FiiDiiAnalysisData } from '../types';
 
 /**
  * Clean string to number handling commas ("23,830.00"), quotes, dashes ("-"), etc.
@@ -279,4 +279,123 @@ export const parseOptCsv = (csvText: string): RawOptRow[] => {
   });
 
   return parsed;
+};
+
+/**
+ * Parses NSE Participant wise Open Interest CSV (fao_participant_oi_*.csv)
+ */
+export const parseFiiDiiParticipantOiCsv = (csvText: string): FiiDiiAnalysisData => {
+  const result = Papa.parse<Record<string, any>>(csvText, {
+    header: true,
+    skipEmptyLines: true,
+    dynamicTyping: false
+  });
+
+  const rows = result.data;
+  const participants: FiiDiiParticipantRow[] = [];
+
+  let fiiFutLong = 0;
+  let fiiFutShort = 0;
+  let fiiCallLong = 0;
+  let fiiCallShort = 0;
+  let fiiPutLong = 0;
+  let fiiPutShort = 0;
+
+  let diiLongRatio = 50;
+  let proLongRatio = 50;
+  let clientLongRatio = 50;
+
+  const cleanNum = (val: any): number => {
+    if (!val) return 0;
+    const str = String(val).replace(/["',]/g, '').trim();
+    const num = parseFloat(str);
+    return isNaN(num) ? 0 : num;
+  };
+
+  const getStrVal = (row: Record<string, any>, keys: string[], defaultVal = ''): string => {
+    for (const key of keys) {
+      if (row[key] !== undefined && row[key] !== null) return String(row[key]);
+    }
+    return defaultVal;
+  };
+
+  rows.forEach(row => {
+    const clientType = getStrVal(row, ['Client Type', 'CLIENT_TYPE', 'Category', 'ClientType']).trim();
+    if (!clientType || clientType.toUpperCase().includes('TOTAL')) return;
+
+    const futIndexLong = cleanNum(row['Future Index Long'] || row['FUT_INDEX_LONG']);
+    const futIndexShort = cleanNum(row['Future Index Short'] || row['FUT_INDEX_SHORT']);
+
+    const optIndexCallLong = cleanNum(row['Option Index Call Long'] || row['OPT_INDEX_CALL_LONG']);
+    const optIndexCallShort = cleanNum(row['Option Index Call Short'] || row['OPT_INDEX_CALL_SHORT']);
+    const optIndexPutLong = cleanNum(row['Option Index Put Long'] || row['OPT_INDEX_PUT_LONG']);
+    const optIndexPutShort = cleanNum(row['Option Index Put Short'] || row['OPT_INDEX_PUT_SHORT']);
+
+    const futStockLong = cleanNum(row['Future Stock Long'] || row['FUT_STOCK_LONG']);
+    const futStockShort = cleanNum(row['Future Stock Short'] || row['FUT_STOCK_SHORT']);
+
+    const totalFut = futIndexLong + futIndexShort;
+    const ratio = totalFut > 0 ? Math.round((futIndexLong / totalFut) * 1000) / 10 : 50;
+
+    const pRow: FiiDiiParticipantRow = {
+      clientType,
+      futIndexLong,
+      futIndexShort,
+      optIndexCallLong,
+      optIndexCallShort,
+      optIndexPutLong,
+      optIndexPutShort,
+      futStockLong,
+      futStockShort,
+      futLongRatioPct: ratio
+    };
+
+    participants.push(pRow);
+
+    const typeUpper = clientType.toUpperCase();
+    if (typeUpper.includes('FII')) {
+      fiiFutLong = futIndexLong;
+      fiiFutShort = futIndexShort;
+      fiiCallLong = optIndexCallLong;
+      fiiCallShort = optIndexCallShort;
+      fiiPutLong = optIndexPutLong;
+      fiiPutShort = optIndexPutShort;
+    } else if (typeUpper.includes('DII')) {
+      diiLongRatio = ratio;
+    } else if (typeUpper.includes('PRO')) {
+      proLongRatio = ratio;
+    } else if (typeUpper.includes('CLIENT')) {
+      clientLongRatio = ratio;
+    }
+  });
+
+  const totalFiiFut = fiiFutLong + fiiFutShort;
+  const fiiLongRatioPct = totalFiiFut > 0 ? Math.round((fiiFutLong / totalFiiFut) * 1000) / 10 : 50;
+
+  let institutionalStance: 'BULLISH_INSTITUTIONAL' | 'BEARISH_INSTITUTIONAL' | 'NEUTRAL_HEDGED' = 'NEUTRAL_HEDGED';
+  let stanceLabel = 'Neutral / Balanced Institutional Positioning';
+
+  if (fiiLongRatioPct >= 60) {
+    institutionalStance = 'BULLISH_INSTITUTIONAL';
+    stanceLabel = `Bullish Institutional Smart Money (${fiiLongRatioPct}% FII Long Futures Ratio)`;
+  } else if (fiiLongRatioPct <= 40) {
+    institutionalStance = 'BEARISH_INSTITUTIONAL';
+    stanceLabel = `Bearish Institutional Shorting (${(100 - fiiLongRatioPct).toFixed(1)}% FII Short Futures Ratio)`;
+  }
+
+  return {
+    participants,
+    fiiLongRatioPct,
+    fiiFutLong,
+    fiiFutShort,
+    fiiCallLong,
+    fiiCallShort,
+    fiiPutLong,
+    fiiPutShort,
+    diiLongRatioPct: diiLongRatio,
+    proLongRatioPct: proLongRatio,
+    clientLongRatioPct: clientLongRatio,
+    institutionalStance,
+    stanceLabel
+  };
 };

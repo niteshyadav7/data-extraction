@@ -55,7 +55,37 @@ export interface UploadedFilesState {
   nextExpiryOptionChainFile: File | null;
   futuresFile: File | null;
   optFile: File | null;
+  fiiDiiFile: File | null;
   missingFileError: string | null;
+}
+
+export interface FiiDiiParticipantRow {
+  clientType: 'Client' | 'DII' | 'FII' | 'Pro' | string;
+  futIndexLong: number;
+  futIndexShort: number;
+  optIndexCallLong: number;
+  optIndexCallShort: number;
+  optIndexPutLong: number;
+  optIndexPutShort: number;
+  futStockLong: number;
+  futStockShort: number;
+  futLongRatioPct: number;
+}
+
+export interface FiiDiiAnalysisData {
+  participants: FiiDiiParticipantRow[];
+  fiiLongRatioPct: number;
+  fiiFutLong: number;
+  fiiFutShort: number;
+  fiiCallLong: number;
+  fiiCallShort: number;
+  fiiPutLong: number;
+  fiiPutShort: number;
+  diiLongRatioPct: number;
+  proLongRatioPct: number;
+  clientLongRatioPct: number;
+  institutionalStance: 'BULLISH_INSTITUTIONAL' | 'BEARISH_INSTITUTIONAL' | 'NEUTRAL_HEDGED';
+  stanceLabel: string;
 }
 
 export interface MarketSummaryData {
@@ -322,6 +352,7 @@ export interface DashboardMetrics {
   mostActive: MostActiveData;
   completeChain: CompleteChainRow[];
   nextExpiryChain?: CompleteChainRow[];
+  fiiDiiAnalysis?: FiiDiiAnalysisData;
   warnings: DataWarnings;
   riskFreeRate: number;
 }

@@ -4,7 +4,7 @@ import type { UploadedFilesState } from '../types';
 
 interface FileUploadProps {
   filesState: UploadedFilesState;
-  onFileSelect: (type: 'optionChainFile' | 'nextExpiryOptionChainFile' | 'futuresFile' | 'optFile', file: File | null) => void;
+  onFileSelect: (type: 'optionChainFile' | 'nextExpiryOptionChainFile' | 'futuresFile' | 'optFile' | 'fiiDiiFile', file: File | null) => void;
   onBatchFilesSelect: (files: FileList) => void;
   onProcessFiles: () => void;
 }
@@ -44,9 +44,16 @@ export const FileUpload: React.FC<FileUploadProps> = ({
       desc: 'e.g. MW-FO-nse50_opt-*.csv or nse50_opt.csv',
       file: filesState.optFile,
     },
+    {
+      key: 'fiiDiiFile' as const,
+      placeholder: 'Select FII / DII Participant OI CSV',
+      label: '5. FII / DII Participant OI CSV',
+      desc: 'e.g. fao_participant_oi_*.csv',
+      file: filesState.fiiDiiFile,
+    },
   ];
 
-  const allUploaded = filesState.optionChainFile && filesState.nextExpiryOptionChainFile && filesState.futuresFile && filesState.optFile;
+  const allUploaded = filesState.optionChainFile && filesState.nextExpiryOptionChainFile && filesState.futuresFile && filesState.optFile && filesState.fiiDiiFile;
 
   return (
     <div className="card" style={{ marginBottom: '24px' }}>
@@ -57,7 +64,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
             Step 1: Upload Real Market CSV Files
           </h2>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            Select or drag & drop your 4 real NSE market CSV files (Near Expiry + Next Expiry + Futures + Options) to calculate derivative analytics.
+            Select or drag & drop your 5 real NSE market CSV files (Near Expiry + Next Expiry + Futures + Options + FII/DII OI) to calculate derivative analytics.
           </p>
         </div>
 
@@ -76,7 +83,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
           />
           <label htmlFor="batch-upload-input" className="btn-secondary" style={{ cursor: 'pointer' }}>
             <UploadCloud size={16} />
-            Upload All 4 Files Together
+            Upload All 5 Files Together
           </label>
         </div>
       </div>

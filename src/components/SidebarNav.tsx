@@ -16,7 +16,8 @@ import {
   Briefcase,
   Activity,
   Award,
-  Layers
+  Layers,
+  Building2
 } from 'lucide-react';
 
 interface NavSection {
@@ -88,6 +89,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
         { id: 'sec-oi', label: 'OI & Build-ups', icon: TrendingUp, iconColor: '#8E44AD' },
         { id: 'sec-greeks', label: 'IV & Greeks', icon: Zap, iconColor: '#D35400' },
         { id: 'sec-expected', label: 'Expected Move', icon: Target, iconColor: '#C0392B' },
+        { id: 'sec-fiidii', label: 'FII / DII Flow Studio', icon: Building2, iconColor: '#C5A059', badge: 'Smart Money' },
       ]
     },
     {

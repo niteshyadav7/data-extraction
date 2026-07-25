@@ -19,7 +19,8 @@ import type {
   HistoricalVolatilityData,
   HvVsIvData,
   MostActiveData,
-  CompleteChainRow
+  CompleteChainRow,
+  FiiDiiAnalysisData
 } from '../types';
 import { calculateBlackScholesGreeks } from './blackScholes';
 
@@ -49,7 +50,8 @@ export const calculateDashboardMetrics = (
   warningsPartial: Partial<DataWarnings> = {},
   hvData?: HistoricalVolatilityData,
   riskFreeRatePercent: number = 5.25,
-  nextExpiryOptionChainData?: RawOptionChainRow[]
+  nextExpiryOptionChainData?: RawOptionChainRow[],
+  fiiDiiData?: FiiDiiAnalysisData
 ): DashboardMetrics => {
   const r = riskFreeRatePercent / 100;
 
@@ -579,6 +581,7 @@ export const calculateDashboardMetrics = (
     mostActive,
     completeChain,
     nextExpiryChain,
+    fiiDiiAnalysis: fiiDiiData,
     warnings,
     riskFreeRate: riskFreeRatePercent
   };

@@ -21,6 +21,7 @@ import { CompleteOptionChain } from './components/CompleteOptionChain';
 import { LtpCalculatorSection } from './components/LtpCalculatorSection';
 import { StrategyHubSection } from './components/StrategyHubSection';
 import { WarningsSection } from './components/WarningsSection';
+import { FiiDiiAnalysis } from './components/FiiDiiAnalysis';
 
 import type {
   DashboardMetrics,
@@ -29,7 +30,7 @@ import type {
   RawFuturesRow,
   RawOptRow
 } from './types';
-import { parseOptionChainCsv, parseFuturesCsv, parseOptCsv } from './utils/csvParser';
+import { parseOptionChainCsv, parseFuturesCsv, parseOptCsv, parseFiiDiiParticipantOiCsv } from './utils/csvParser';
 import { calculateDashboardMetrics } from './utils/calculations';
 import { fetchYahooFinanceOHLCV, getYahooTickerForSymbol } from './utils/yahooFinance';
 import { loadStocksList } from './utils/stocksParser';
@@ -43,12 +44,13 @@ export function App() {
   const [selectedSymbol, setSelectedSymbol] = useState<string>('NIFTY');
   const [selectedType, setSelectedType] = useState<'INDEX' | 'STOCK'>('INDEX');
 
-  // Clean file upload state for 4 required CSV files
+  // Clean file upload state for 5 required CSV files
   const [filesState, setFilesState] = useState<UploadedFilesState>({
     optionChainFile: null,
     nextExpiryOptionChainFile: null,
     futuresFile: null,
     optFile: null,
+    fiiDiiFile: null,
     missingFileError: null
   });
 
@@ -72,7 +74,7 @@ export function App() {
     setSelectedType(type);
   };
 
-  const handleFileSelect = (type: 'optionChainFile' | 'nextExpiryOptionChainFile' | 'futuresFile' | 'optFile', file: File | null) => {
+  const handleFileSelect = (type: 'optionChainFile' | 'nextExpiryOptionChainFile' | 'futuresFile' | 'optFile' | 'fiiDiiFile', file: File | null) => {
     setFilesState(prev => ({
       ...prev,
       [type]: file,
@@ -84,10 +86,13 @@ export function App() {
     const ocFiles: File[] = [];
     let fut: File | null = filesState.futuresFile;
     let opt: File | null = filesState.optFile;
+    let fiiDii: File | null = filesState.fiiDiiFile;
 
     Array.from(fileList).forEach(file => {
       const name = file.name.toLowerCase();
-      if (name.includes('option-chain') || name.includes('chain')) {
+      if (name.includes('participant') || name.includes('fii') || name.includes('dii') || name.includes('fao_participant_oi')) {
+        fiiDii = file;
+      } else if (name.includes('option-chain') || name.includes('chain')) {
         ocFiles.push(file);
       } else if (name.includes('fut')) {
         fut = file;
@@ -113,6 +118,7 @@ export function App() {
       nextExpiryOptionChainFile: nextOc,
       futuresFile: fut,
       optFile: opt,
+      fiiDiiFile: fiiDii,
       missingFileError: null
     });
   };
@@ -138,17 +144,24 @@ export function App() {
       setMetrics(null);
       return;
     }
+    if (!filesState.fiiDiiFile) {
+      setFilesState(prev => ({ ...prev, missingFileError: '5. FII / DII Participant OI CSV (fao_participant_oi_*.csv)' }));
+      setMetrics(null);
+      return;
+    }
 
     try {
       const optionChainText = await filesState.optionChainFile.text();
       const nextExpiryText = await filesState.nextExpiryOptionChainFile.text();
       const futuresText = await filesState.futuresFile.text();
       const optText = await filesState.optFile.text();
+      const fiiDiiText = await filesState.fiiDiiFile.text();
 
       const { data: optionChainData, warningsPartial } = parseOptionChainCsv(optionChainText);
       const { data: nextExpiryData } = parseOptionChainCsv(nextExpiryText);
       const futuresData = parseFuturesCsv(futuresText);
       const optData = parseOptCsv(optText);
+      const fiiDiiData = parseFiiDiiParticipantOiCsv(fiiDiiText);
 
       const spot = futuresData.spotPrice || (optionChainData.length > 0 ? optionChainData[0].underlyingValue : 0);
       const yahooSymbol = getYahooTickerForSymbol(selectedSymbol, selectedType);
@@ -161,7 +174,8 @@ export function App() {
         warningsPartial,
         freshHv,
         riskFreeRate,
-        nextExpiryData
+        nextExpiryData,
+        fiiDiiData
       );
 
       setMetrics(calculated);
@@ -412,6 +426,7 @@ export function App() {
       nextExpiryOptionChainFile: null,
       futuresFile: null,
       optFile: null,
+      fiiDiiFile: null,
       missingFileError: null
     });
     setMetrics(null);
@@ -616,6 +631,7 @@ export function App() {
                   atmIv={metrics.ivAnalysis.atmIv}
                 />
                 <FuturesAnalysis data={metrics.futuresAnalysis} />
+                {metrics.fiiDiiAnalysis && <FiiDiiAnalysis data={metrics.fiiDiiAnalysis} />}
                 <HVSection data={metrics.historicalVolatility} onRefreshYahoo={handleRefreshYahoo} />
                 <HVvsIVSection data={metrics.hvVsIv} />
               </div>
