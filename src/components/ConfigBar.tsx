@@ -1,5 +1,5 @@
 import React from 'react';
-import { Settings, Percent, Clock, Radio, RefreshCw, Activity } from 'lucide-react';
+import { Settings, Percent, Clock, Activity } from 'lucide-react';
 import type { MarketSummaryData } from '../types';
 
 interface ConfigBarProps {
@@ -7,23 +7,18 @@ interface ConfigBarProps {
   onRateChange: (rate: number) => void;
   timestamp: string;
   marketSummaryData?: MarketSummaryData;
-  isLiveSync: boolean;
-  onToggleLiveSync: () => void;
-  syncInterval: number;
-  onIntervalChange: (seconds: number) => void;
-  onManualLiveSync: () => void;
+  isLiveSync?: boolean;
+  onToggleLiveSync?: () => void;
+  syncInterval?: number;
+  onIntervalChange?: (seconds: number) => void;
+  onManualLiveSync?: () => void;
 }
 
 export const ConfigBar: React.FC<ConfigBarProps> = ({
   riskFreeRate,
   onRateChange,
   timestamp,
-  marketSummaryData,
-  isLiveSync,
-  onToggleLiveSync,
-  syncInterval,
-  onIntervalChange,
-  onManualLiveSync
+  marketSummaryData
 }) => {
   const isMarketOpen = marketSummaryData ? marketSummaryData.isMarketOpen : false;
   const sessionLabel = marketSummaryData ? marketSummaryData.marketStatusLabel : 'LAST SESSION CLOSE';
@@ -53,55 +48,6 @@ export const ConfigBar: React.FC<ConfigBarProps> = ({
             <Activity size={12} />
             {sessionLabel}
           </span>
-
-          <button
-            onClick={onToggleLiveSync}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '4px 12px',
-              borderRadius: '20px',
-              border: isLiveSync ? '1px solid var(--color-green)' : '1px solid var(--border-color)',
-              backgroundColor: isLiveSync ? 'var(--bg-green)' : 'var(--bg-main)',
-              color: isLiveSync ? 'var(--color-green)' : 'var(--text-muted)',
-              fontWeight: 700,
-              fontSize: '0.8rem',
-              cursor: 'pointer'
-            }}
-          >
-            <Radio size={14} className={isLiveSync ? 'animate-pulse' : ''} />
-            {isLiveSync ? '🔴 Live Auto-Sync ON' : '⚪ Live Auto-Sync OFF'}
-          </button>
-
-          {isLiveSync && (
-            <select
-              value={syncInterval}
-              onChange={(e) => onIntervalChange(Number(e.target.value))}
-              style={{
-                padding: '4px 8px',
-                borderRadius: '4px',
-                border: '1px solid var(--border-color)',
-                backgroundColor: 'var(--bg-main)',
-                color: 'var(--text-main)',
-                fontSize: '0.8rem',
-                fontWeight: 600
-              }}
-            >
-              <option value={60}>Refresh Every 60s</option>
-              <option value={180}>Refresh Every 3m</option>
-            </select>
-          )}
-
-          <button
-            onClick={onManualLiveSync}
-            className="btn-secondary"
-            style={{ fontSize: '0.8rem', padding: '4px 10px' }}
-            title="Fetch live exchange snapshot now"
-          >
-            <RefreshCw size={12} />
-            Sync Now
-          </button>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '24px', flexWrap: 'wrap' }}>
