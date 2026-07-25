@@ -25,13 +25,13 @@ interface NavSection {
   iconColor: string;
   badge?: string;
   isViewSwitch?: boolean;
-  viewName?: 'DASHBOARD' | 'STRATEGY_HUB' | 'IRON_CONDOR';
+  viewName?: 'DASHBOARD' | 'STRATEGY_HUB' | 'IRON_CONDOR' | 'IRON_BUTTERFLY';
 }
 
 interface SidebarNavProps {
   activeSection?: string;
-  currentView?: 'DASHBOARD' | 'STRATEGY_HUB' | 'IRON_CONDOR';
-  onSelectView?: (view: 'DASHBOARD' | 'STRATEGY_HUB' | 'IRON_CONDOR', sectionId?: string) => void;
+  currentView?: 'DASHBOARD' | 'STRATEGY_HUB' | 'IRON_CONDOR' | 'IRON_BUTTERFLY';
+  onSelectView?: (view: 'DASHBOARD' | 'STRATEGY_HUB' | 'IRON_CONDOR' | 'IRON_BUTTERFLY', sectionId?: string) => void;
 }
 
 export const SidebarNav: React.FC<SidebarNavProps> = ({
@@ -90,6 +90,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
       categoryIcon: Layers,
       items: [
         { id: 'sec-iron-condor', label: 'Iron Condor Strategy', icon: Briefcase, iconColor: '#27AE60', badge: 'Dynamic', isViewSwitch: true, viewName: 'IRON_CONDOR' },
+        { id: 'sec-iron-butterfly', label: 'Iron Butterfly Strategy', icon: Award, iconColor: '#2980B9', badge: 'Max Pain Pin', isViewSwitch: true, viewName: 'IRON_BUTTERFLY' },
       ]
     }
   ];
@@ -130,6 +131,11 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
     }
     if (currentView === 'IRON_CONDOR') {
       setCurrentActive('sec-iron-condor');
+      setOpenCategories(prev => ({ ...prev, 'QUANT STRATEGIES': true }));
+      return;
+    }
+    if (currentView === 'IRON_BUTTERFLY') {
+      setCurrentActive('sec-iron-butterfly');
       setOpenCategories(prev => ({ ...prev, 'QUANT STRATEGIES': true }));
       return;
     }

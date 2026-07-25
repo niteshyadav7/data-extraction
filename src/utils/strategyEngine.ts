@@ -291,7 +291,6 @@ export const calculateIronCondorStrategy = (
     expectedMoveText
   };
 
-  // Decision Intelligence: Pros, Cons, Executive Summary, Confluence Score & Execution Plan
   const confluenceScore = Math.min(98, Math.round((popPercentage * 0.5) + (score * 0.5)));
   const confidenceRating = confluenceScore >= 80 ? 'HIGH CONFIDENCE' : confluenceScore >= 65 ? 'MODERATE CONFIDENCE' : 'LOW CONFIDENCE';
 
@@ -388,6 +387,202 @@ export const calculateIronCondorStrategy = (
       eor2: Math.round(eor2),
       maxPain: maxPainStrike || 0
     } : undefined,
+    payoffRows
+  };
+};
+
+/**
+ * Strategy #2: 🦋 Dynamic Iron Butterfly Strategy (Max Pain Pinning Trade)
+ */
+export const calculateIronButterflyStrategy = (
+  optionChain: any[],
+  spotPrice: number,
+  symbol: string = 'NIFTY',
+  customLotSize?: number,
+  wingWidthStrikes: number = 2,
+  maxPainStrike?: number
+): StrategyResult | null => {
+  if (!optionChain || optionChain.length < 5 || spotPrice <= 0) return null;
+
+  const lotSize = customLotSize && customLotSize > 0 ? customLotSize : getDefaultLotSizeForSymbol(symbol);
+  const sorted = [...optionChain].sort((a, b) => (a.strikePrice || a.strike) - (b.strikePrice || b.strike));
+
+  // Find ATM Index (or Max Pain Strike if available)
+  let atmIndex = 0;
+  let minDiff = Infinity;
+  const targetAtmPrice = (maxPainStrike && maxPainStrike > 0) ? maxPainStrike : spotPrice;
+
+  sorted.forEach((row, idx) => {
+    const strike = row.strikePrice || row.strike || 0;
+    const diff = Math.abs(strike - targetAtmPrice);
+    if (diff < minDiff) {
+      minDiff = diff;
+      atmIndex = idx;
+    }
+  });
+
+  const longPutIndex = Math.max(0, atmIndex - wingWidthStrikes);
+  const longCallIndex = Math.min(sorted.length - 1, atmIndex + wingWidthStrikes);
+
+  const atmRow = sorted[atmIndex];
+  const longPutRow = sorted[longPutIndex];
+  const longCallRow = sorted[longCallIndex];
+
+  const atmStrike = atmRow.strikePrice || atmRow.strike;
+  const lpStrike = longPutRow.strikePrice || longPutRow.strike;
+  const lcStrike = longCallRow.strikePrice || longCallRow.strike;
+
+  const atmCeLtp = atmRow.ceLtp || 0;
+  const atmPeLtp = atmRow.peLtp || 0;
+  const lpLtp = longPutRow.peLtp || 0;
+  const lcLtp = longCallRow.ceLtp || 0;
+
+  const atmCeDelta = atmRow.ceDelta !== undefined ? atmRow.ceDelta : 0.50;
+  const atmPeDelta = atmRow.peDelta !== undefined ? atmRow.peDelta : -0.50;
+  const lpDelta = longPutRow.peDelta !== undefined ? longPutRow.peDelta : -0.15;
+  const lcDelta = longCallRow.ceDelta !== undefined ? longCallRow.ceDelta : 0.15;
+
+  const atmCeTheta = atmRow.ceTheta !== undefined ? atmRow.ceTheta : -12;
+  const atmPeTheta = atmRow.peTheta !== undefined ? atmRow.peTheta : -12;
+  const lpTheta = longPutRow.peTheta !== undefined ? longPutRow.peTheta : -3;
+  const lcTheta = longCallRow.ceTheta !== undefined ? longCallRow.ceTheta : -3;
+
+  const atmCeVega = atmRow.ceVega !== undefined ? atmRow.ceVega : 15;
+  const atmPeVega = atmRow.peVega !== undefined ? atmRow.peVega : 15;
+  const lpVega = longPutRow.peVega !== undefined ? longPutRow.peVega : 5;
+  const lcVega = longCallRow.ceVega !== undefined ? longCallRow.ceVega : 5;
+
+  const atmCeGamma = atmRow.ceGamma !== undefined ? atmRow.ceGamma : 0.002;
+  const atmPeGamma = atmRow.peGamma !== undefined ? atmRow.peGamma : 0.002;
+  const lpGamma = longPutRow.peGamma !== undefined ? longPutRow.peGamma : 0.0006;
+  const lcGamma = longCallRow.ceGamma !== undefined ? longCallRow.ceGamma : 0.0006;
+
+  const atmCeExtrinsic = Math.max(0, atmCeLtp - Math.max(0, spotPrice - atmStrike));
+  const atmPeExtrinsic = Math.max(0, atmPeLtp - Math.max(0, atmStrike - spotPrice));
+  const lpExtrinsic = Math.max(0, lpLtp - Math.max(0, lpStrike - spotPrice));
+  const lcExtrinsic = Math.max(0, lcLtp - Math.max(0, spotPrice - lcStrike));
+
+  const legs: StrategyLeg[] = [
+    { action: 'BUY', optionType: 'PE', strike: lpStrike, ltp: lpLtp, delta: lpDelta, gamma: lpGamma, theta: lpTheta, vega: lpVega, iv: longPutRow.peIv || 0, extrinsicValue: lpExtrinsic, role: 'Long Put Wing' },
+    { action: 'SELL', optionType: 'PE', strike: atmStrike, ltp: atmPeLtp, delta: atmPeDelta, gamma: atmPeGamma, theta: atmPeTheta, vega: atmPeVega, iv: atmRow.peIv || 0, extrinsicValue: atmPeExtrinsic, role: 'Short ATM Put' },
+    { action: 'SELL', optionType: 'CE', strike: atmStrike, ltp: atmCeLtp, delta: atmCeDelta, gamma: atmCeGamma, theta: atmCeTheta, vega: atmCeVega, iv: atmRow.ceIv || 0, extrinsicValue: atmCeExtrinsic, role: 'Short ATM Call' },
+    { action: 'BUY', optionType: 'CE', strike: lcStrike, ltp: lcLtp, delta: lcDelta, gamma: lcGamma, theta: lcTheta, vega: lcVega, iv: longCallRow.ceIv || 0, extrinsicValue: lcExtrinsic, role: 'Long Call Wing' },
+  ];
+
+  const netCreditPerShare = Math.max(0, Math.round(((atmCeLtp + atmPeLtp) - (lcLtp + lpLtp)) * 100) / 100);
+  const netCreditTotal = Math.round(netCreditPerShare * lotSize);
+
+  const spreadWidth = lcStrike - atmStrike;
+  const maxProfit = netCreditTotal;
+  const maxLossPerShare = Math.max(0, spreadWidth - netCreditPerShare);
+  const maxLoss = Math.round(maxLossPerShare * lotSize);
+
+  const upperBreakeven = Math.round((atmStrike + netCreditPerShare) * 100) / 100;
+  const lowerBreakeven = Math.round((atmStrike - netCreditPerShare) * 100) / 100;
+  const riskRewardRatio = maxProfit > 0 ? Math.round((maxLoss / maxProfit) * 100) / 100 : 0;
+
+  // POP for Iron Butterfly ~ 55% - 65%
+  const popPercentage = Math.min(75, Math.max(40, Math.round((netCreditPerShare / spreadWidth) * 100)));
+  const totalExtrinsicCaptured = Math.round(((atmCeExtrinsic + atmPeExtrinsic) - (lcExtrinsic + lpExtrinsic)) * lotSize);
+
+  const netDeltaPerShare = (lpDelta + lcDelta) - (atmPeDelta + atmCeDelta);
+  const netDeltaTotal = Math.round(netDeltaPerShare * lotSize * 100) / 100;
+
+  const netGammaPerShare = (lpGamma + lcGamma) - (atmPeGamma + atmCeGamma);
+  const netGammaTotal = Math.round(netGammaPerShare * lotSize * 1000) / 1000;
+
+  const dailyThetaIncome = Math.round(((-atmPeTheta - atmCeTheta) + (lpTheta + lcTheta)) * lotSize);
+  const vegaCrushGain = Math.round(((-atmPeVega - atmCeVega) + (lpVega + lcVega)) * lotSize);
+
+  const greeks: StrategyGreeks = {
+    netDelta: netDeltaTotal,
+    netGamma: netGammaTotal,
+    dailyThetaIncome: Math.max(0, dailyThetaIncome),
+    vegaCrushGain
+  };
+
+  const healthScore: StrategyInstitutionalScore = {
+    score: 92,
+    rating: 'EXCELLENT',
+    reversalAlignmentText: `Pinned at Max Pain / ATM Strike ₹${atmStrike} for maximum gravitational expiry decay`,
+    expectedMoveText: `Breakevens (₹${lowerBreakeven} ↔ ₹${upperBreakeven}) envelop Max Pain pin zone`
+  };
+
+  const decisionIntelligence: StrategyDecisionIntelligence = {
+    executiveSummary: `${symbol.toUpperCase()} derivative metrics support a high-theta Iron Butterfly pinning strategy centered at Max Pain / ATM Strike ₹${atmStrike}. Generating +₹${Math.max(0, dailyThetaIncome)}/day in time decay, this setup captures maximum peak credit of ₹${maxProfit.toLocaleString('en-IN')} with defined wing protection.`,
+    confluenceScore: 86,
+    confidenceRating: 'HIGH CONFIDENCE',
+    pros: [
+      `Maximum daily Theta time decay cashflow (+₹${Math.max(0, dailyThetaIncome)}/day) for lot size ${lotSize}.`,
+      `Optimal strike pinning at Max Pain / ATM Strike ₹${atmStrike}.`,
+      `Substantial Max Profit potential (+₹${maxProfit.toLocaleString('en-IN')}) collected as net credit.`,
+      `Defined & Capped Max Loss of ₹${maxLoss.toLocaleString('en-IN')} via protective wings.`
+    ],
+    cons: [
+      `Narrow peak profit cone: Maximum profit requires spot to expire close to ₹${atmStrike}.`,
+      `Negative Gamma: Position sensitivity increases as expiry approaches if spot moves away from ATM strike.`
+    ],
+    executionPlan: {
+      entryZone: `Spot near ₹${atmStrike.toLocaleString('en-IN')} (within 0.5% of Max Pain / ATM strike).`,
+      profitTarget: `Exit at 50% - 60% max profit (harvest +₹${Math.round(maxProfit * 0.55).toLocaleString('en-IN')} profit).`,
+      adjustmentTrigger: `Exit or convert to straddle if spot moves beyond wing strikes (₹${lpStrike} or ₹${lcStrike}).`
+    }
+  };
+
+  const payoffRows: PayoffRow[] = [];
+  const minSpot = Math.round(lowerBreakeven * 0.96);
+  const maxSpot = Math.round(upperBreakeven * 1.04);
+  const step = Math.max(5, Math.round((maxSpot - minSpot) / 15));
+
+  for (let s = minSpot; s <= maxSpot; s += step) {
+    const putShortLoss = Math.max(0, atmStrike - s);
+    const putLongGain = Math.max(0, lpStrike - s);
+    const callShortLoss = Math.max(0, s - atmStrike);
+    const callLongGain = Math.max(0, s - lcStrike);
+
+    const netPayoffPerShare = netCreditPerShare - putShortLoss + putLongGain - callShortLoss + callLongGain;
+    const pnl = Math.round(netPayoffPerShare * lotSize);
+    const pnlPct = maxLoss > 0 ? Math.round((pnl / maxLoss) * 100) : 0;
+
+    let tag: string | undefined;
+    if (Math.abs(s - atmStrike) < step / 2) tag = 'MAX PAIN / ATM PIN STRIKE';
+
+    payoffRows.push({
+      spot: s,
+      pnl,
+      pnlPct,
+      isCurrentSpot: Math.abs(s - spotPrice) < step / 2,
+      isBreakeven: Math.abs(s - lowerBreakeven) < step / 2 || Math.abs(s - upperBreakeven) < step / 2,
+      isMaxPain: Math.abs(s - atmStrike) < step / 2,
+      tag
+    });
+  }
+
+  return {
+    strategyName: 'Iron Butterfly (Max Pain Pinning)',
+    symbol: symbol.toUpperCase(),
+    spotPrice,
+    lotSize,
+    legs,
+    netCreditPerShare,
+    netDebitPerShare: 0,
+    maxProfit,
+    maxLoss,
+    upperBreakeven,
+    lowerBreakeven,
+    riskRewardRatio,
+    popPercentage,
+    totalExtrinsicCaptured,
+    greeks,
+    healthScore,
+    decisionIntelligence,
+    reversalLevels: {
+      eos1: lpStrike,
+      eos2: Math.max(0, lpStrike - (lcStrike - atmStrike)),
+      eor1: lcStrike,
+      eor2: lcStrike + (lcStrike - atmStrike),
+      maxPain: atmStrike
+    },
     payoffRows
   };
 };

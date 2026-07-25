@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import {
   calculateIronCondorStrategy,
+  calculateIronButterflyStrategy,
   calculateBullCallSpread,
   calculateBearPutSpread,
   getDefaultLotSizeForSymbol,
@@ -28,7 +29,7 @@ interface StrategyHubSectionProps {
   supportResistance?: any;
   maxPainStrike?: number;
   expectedMoveBounds?: { upper: number; lower: number };
-  initialTab?: 'IRON_CONDOR' | 'BULL_CALL' | 'BEAR_PUT' | 'ALL';
+  initialTab?: 'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_CALL' | 'BEAR_PUT' | 'ALL';
   onBackToDashboard?: () => void;
 }
 
@@ -42,8 +43,8 @@ export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
   initialTab = 'IRON_CONDOR',
   onBackToDashboard
 }) => {
-  const [activeTab, setActiveTab] = useState<'IRON_CONDOR' | 'BULL_CALL' | 'BEAR_PUT'>(
-    initialTab === 'ALL' ? 'IRON_CONDOR' : initialTab
+  const [activeTab, setActiveTab] = useState<'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_CALL' | 'BEAR_PUT'>(
+    initialTab === 'ALL' || initialTab === 'IRON_CONDOR' ? 'IRON_CONDOR' : initialTab
   );
   const [lotSize, setLotSize] = useState<number>(getDefaultLotSizeForSymbol(selectedSymbol));
   const [wingWidth, setWingWidth] = useState<number>(2);
@@ -99,6 +100,15 @@ export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
       supportResistance,
       maxPainStrike,
       expectedMoveBounds
+    );
+  } else if (activeTab === 'IRON_BUTTERFLY') {
+    result = calculateIronButterflyStrategy(
+      optionChain,
+      currentSpot,
+      selectedSymbol,
+      lotSize,
+      wingWidth,
+      maxPainStrike
     );
   } else if (activeTab === 'BULL_CALL') {
     result = calculateBullCallSpread(optionChain, currentSpot, selectedSymbol, lotSize);
@@ -175,6 +185,26 @@ export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
           }}
         >
           <Layers size={16} /> 🟢 Iron Condor (Neutral Income)
+        </button>
+
+        <button
+          onClick={() => setActiveTab('IRON_BUTTERFLY')}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '10px 18px',
+            borderRadius: '8px',
+            fontSize: '0.88rem',
+            fontWeight: 700,
+            cursor: 'pointer',
+            backgroundColor: activeTab === 'IRON_BUTTERFLY' ? 'var(--color-blue)' : 'var(--bg-main)',
+            color: activeTab === 'IRON_BUTTERFLY' ? '#FFF' : 'var(--text-main)',
+            border: `1.5px solid ${activeTab === 'IRON_BUTTERFLY' ? 'var(--color-blue)' : 'var(--border-color)'}`,
+            transition: 'all 0.15s ease'
+          }}
+        >
+          <Award size={16} /> 🦋 Iron Butterfly (Max Pain Pinning)
         </button>
 
         <button
@@ -383,8 +413,8 @@ export const StrategyHubSection: React.FC<StrategyHubSectionProps> = ({
           />
         </div>
 
-        {/* Wing Protection Width (Iron Condor only) */}
-        {activeTab === 'IRON_CONDOR' && (
+        {/* Wing Protection Width (Iron Condor & Iron Butterfly) */}
+        {(activeTab === 'IRON_CONDOR' || activeTab === 'IRON_BUTTERFLY') && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)' }}>
               Wing Protection Width:
