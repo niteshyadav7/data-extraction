@@ -48,6 +48,7 @@ export const LtpStrategySection: React.FC<LtpStrategySectionProps> = ({
     reversalBandwidthPts,
     reversalChannelPositionPct,
     extrinsicHarvestEfficiencyPct,
+    noTradeStatus,
     reversalMatrixRows,
     reversalChecklist
   } = ltpStrategy;
@@ -69,6 +70,49 @@ export const LtpStrategySection: React.FC<LtpStrategySectionProps> = ({
         <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)' }}>
           Current Exchange Spot: <strong style={{ color: 'var(--text-main)' }}>₹{spot.toLocaleString('en-IN')}</strong>
         </span>
+      </div>
+
+      {/* NO-TRADE DAY / TRADE PERMISSION BANNER */}
+      <div className="card" style={{
+        marginBottom: '20px',
+        padding: '16px 20px',
+        backgroundColor: noTradeStatus.isNoTradeDay ? '#FADBD8' : '#E2F0E5',
+        border: `2px solid ${noTradeStatus.isNoTradeDay ? 'var(--color-red)' : 'var(--color-green)'}`,
+        boxShadow: `0 4px 14px ${noTradeStatus.isNoTradeDay ? 'rgba(231, 76, 60, 0.15)' : 'rgba(46, 204, 113, 0.15)'}`
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            {noTradeStatus.isNoTradeDay ? (
+              <AlertTriangle size={28} color="var(--color-red)" style={{ flexShrink: 0 }} />
+            ) : (
+              <CheckCircle2 size={28} color="var(--color-green)" style={{ flexShrink: 0 }} />
+            )}
+            <div>
+              <div style={{
+                fontSize: '1.1rem',
+                fontWeight: 900,
+                color: noTradeStatus.isNoTradeDay ? 'var(--color-red)' : 'var(--color-green)'
+              }}>
+                {noTradeStatus.tradePermissionLabel}
+              </div>
+              <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-main)', marginTop: '2px' }}>
+                {noTradeStatus.noTradeReason}
+              </div>
+            </div>
+          </div>
+
+          <div style={{
+            padding: '6px 14px',
+            borderRadius: '6px',
+            backgroundColor: 'var(--bg-main)',
+            border: `1.5px solid ${noTradeStatus.isNoTradeDay ? 'var(--color-red)' : 'var(--color-green)'}`,
+            fontWeight: 800,
+            fontSize: '0.78rem',
+            color: noTradeStatus.isNoTradeDay ? 'var(--color-red)' : 'var(--color-green)'
+          }}>
+            {noTradeStatus.isNoTradeDay ? '⚠️ CAPITAL PROTECTION MODE' : '✅ THETA DECAY OPTIMAL'}
+          </div>
+        </div>
       </div>
 
       {/* Mode Selector Bar: Option Selling vs Option Buying */}

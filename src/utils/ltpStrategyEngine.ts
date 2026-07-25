@@ -21,6 +21,13 @@ export interface LtpReversalCheckItem {
   details: string;
 }
 
+export interface NoTradeStatus {
+  isNoTradeDay: boolean;
+  tradePermissionLabel: '🟢 SAFE TO TRADE TODAY' | '🔴 DO NOT TRADE TODAY (NO-TRADE DAY)';
+  noTradeReason: string;
+  warningCategory: 'SAFE' | 'HIGH_VOLATILITY' | 'EXTREME_TREND' | 'NARROW_CORRIDOR' | 'STATE_OF_CONFUSION';
+}
+
 export interface LtpStrategyResult {
   strategyResult: StrategyResult;
   mode: 'OPTION_SELLING' | 'OPTION_BUYING_CALL' | 'OPTION_BUYING_PUT' | 'OPTION_BUYING_STRADDLE';
@@ -34,6 +41,7 @@ export interface LtpStrategyResult {
   deltaThetaLeverageRatio: number; // Spot points needed per day to beat Theta decay
   intrinsicValueRatioPct: number; // Intrinsic value % of bought leg
   buyerRewardRiskRatioText: string; // e.g. "1 : 2.85" (Risk ₹1 to make ₹2.85)
+  noTradeStatus: NoTradeStatus;
   reversalMatrixRows: LtpReversalRow[];
   reversalChecklist: LtpReversalCheckItem[];
 }
@@ -374,6 +382,38 @@ export const calculateLtpReversalStrategy = (
     });
   }
 
+  // Quantitative No-Trade Day Decision Engine
+  let isNoTradeDay = false;
+  let tradePermissionLabel: '🟢 SAFE TO TRADE TODAY' | '🔴 DO NOT TRADE TODAY (NO-TRADE DAY)' = '🟢 SAFE TO TRADE TODAY';
+  let noTradeReason = 'Market conditions are optimal for Option Selling. High Theta decay efficiency inside EOS ↔ EOR corridor.';
+  let warningCategory: 'SAFE' | 'HIGH_VOLATILITY' | 'EXTREME_TREND' | 'NARROW_CORRIDOR' | 'STATE_OF_CONFUSION' = 'SAFE';
+
+  const atmIv = atmRow.ceIv || 14.5;
+
+  if (reversalBandwidthPts < 100) {
+    isNoTradeDay = true;
+    tradePermissionLabel = '🔴 DO NOT TRADE TODAY (NO-TRADE DAY)';
+    noTradeReason = `Reversal Bandwidth is too narrow (${reversalBandwidthPts} pts). Insufficient credit safety corridor for Option Selling!`;
+    warningCategory = 'NARROW_CORRIDOR';
+  } else if (atmIv > 22.0) {
+    isNoTradeDay = true;
+    tradePermissionLabel = '🔴 DO NOT TRADE TODAY (NO-TRADE DAY)';
+    noTradeReason = `Implied Volatility is high (${atmIv}% IV). Vega expansion risk will inflate short options. Stay in cash!`;
+    warningCategory = 'HIGH_VOLATILITY';
+  } else if (reversalChannelPositionPct < 5 || reversalChannelPositionPct > 95) {
+    isNoTradeDay = true;
+    tradePermissionLabel = '🔴 DO NOT TRADE TODAY (NO-TRADE DAY)';
+    noTradeReason = `Spot (₹${spotPrice.toLocaleString('en-IN')}) is breaching the EOS Floor / EOR Ceiling boundary. Extreme momentum breakout day!`;
+    warningCategory = 'EXTREME_TREND';
+  }
+
+  const noTradeStatus: NoTradeStatus = {
+    isNoTradeDay,
+    tradePermissionLabel,
+    noTradeReason,
+    warningCategory
+  };
+
   const strategyResult: StrategyResult = {
     strategyName,
     symbol: symbol.toUpperCase(),
@@ -415,6 +455,7 @@ export const calculateLtpReversalStrategy = (
     deltaThetaLeverageRatio,
     intrinsicValueRatioPct,
     buyerRewardRiskRatioText,
+    noTradeStatus,
     reversalMatrixRows,
     reversalChecklist
   };
