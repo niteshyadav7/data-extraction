@@ -23,6 +23,7 @@ import { StrategyHubSection } from './components/StrategyHubSection';
 import { WarningsSection } from './components/WarningsSection';
 import { FiiDiiAnalysis } from './components/FiiDiiAnalysis';
 import { SmartStrategyRecommendationBanner } from './components/SmartStrategyRecommendationBanner';
+import { LtpStrategySection } from './components/LtpStrategySection';
 
 import type {
   DashboardMetrics,
@@ -433,9 +434,9 @@ export function App() {
     setMetrics(null);
   };
 
-  const [currentView, setCurrentView] = useState<'DASHBOARD' | 'STRATEGY_HUB' | 'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BEAR_CALL_CREDIT' | 'SHORT_STRANGLE' | 'RATIO_PUT_SPREAD' | 'CALENDAR_SPREAD'>('DASHBOARD');
+  const [currentView, setCurrentView] = useState<'DASHBOARD' | 'STRATEGY_HUB' | 'LTP_STRATEGY' | 'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BEAR_CALL_CREDIT' | 'SHORT_STRANGLE' | 'RATIO_PUT_SPREAD' | 'CALENDAR_SPREAD'>('DASHBOARD');
 
-  const handleSelectView = (view: 'DASHBOARD' | 'STRATEGY_HUB' | 'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BEAR_CALL_CREDIT' | 'SHORT_STRANGLE' | 'RATIO_PUT_SPREAD' | 'CALENDAR_SPREAD', sectionId?: string) => {
+  const handleSelectView = (view: 'DASHBOARD' | 'STRATEGY_HUB' | 'LTP_STRATEGY' | 'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BEAR_CALL_CREDIT' | 'SHORT_STRANGLE' | 'RATIO_PUT_SPREAD' | 'CALENDAR_SPREAD', sectionId?: string) => {
     setCurrentView(view);
     if (view === 'DASHBOARD') {
       if (sectionId && sectionId !== 'top') {
@@ -566,6 +567,11 @@ export function App() {
               maxPainStrike={metrics?.maxPain.maxPainStrike}
               expectedMoveBounds={metrics ? { upper: metrics.expectedMove.upperBound, lower: metrics.expectedMove.lowerBound } : undefined}
               initialTab="CALENDAR_SPREAD"
+              onBackToDashboard={() => setCurrentView('DASHBOARD')}
+            />
+          ) : currentView === 'LTP_STRATEGY' ? (
+            <LtpStrategySection
+              metrics={metrics}
               onBackToDashboard={() => setCurrentView('DASHBOARD')}
             />
           ) : currentView === 'STRATEGY_HUB' ? (
