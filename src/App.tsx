@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import { Header } from './components/Header';
 import { FileUpload } from './components/FileUpload';
 import { ConfigBar } from './components/ConfigBar';
-import { StickyNavBar } from './components/StickyNavBar';
 import { SidebarNav } from './components/SidebarNav';
 import { MarketSummary } from './components/MarketSummary';
 import { OptionChainSummary } from './components/OptionChainSummary';
@@ -415,8 +414,6 @@ export function App() {
             onIntervalChange={setSyncInterval}
             onManualLiveSync={() => fetchSymbolData(selectedSymbol, selectedType)}
           />
-
-          {metrics && <StickyNavBar />}
 
           <FileUpload
             filesState={filesState}
