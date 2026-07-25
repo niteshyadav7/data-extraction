@@ -179,7 +179,7 @@ export const StrategyComparisonStudio: React.FC<StrategyComparisonStudioProps> =
                   </td>
 
                   <td style={{ padding: '12px 14px' }}>
-                    1 : {res.riskRewardRatio}
+                    {res.riskRewardRatio > 0 ? `${res.riskRewardRatio} : 1` : '1 : 1'}
                   </td>
 
                   <td style={{ padding: '12px 14px', color: 'var(--color-green)', fontWeight: 700 }}>

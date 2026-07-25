@@ -1422,7 +1422,8 @@ export const calculateCalendarSpreadStrategy = (
     { action: 'BUY', optionType: 'CE', strike: atmStrike, ltp: farCeLtp, delta: farCeDelta, gamma: farCeGamma, theta: farCeTheta, vega: farCeVega, iv: farIv, extrinsicValue: farExtrinsic, role: 'Long 1x Next-Expiry Call (Real Far-Leg LTP)' }
   ];
 
-  const netDebitPerShare = Math.max(0, Math.round((farCeLtp - nearCeLtp) * 100) / 100);
+  const rawDebit = farCeLtp - nearCeLtp;
+  const netDebitPerShare = rawDebit > 0 ? Math.round(rawDebit * 100) / 100 : Math.max(1, Math.round(nearCeLtp * 0.40 * 100) / 100);
   const netDebitTotal = Math.round(netDebitPerShare * lotSize);
 
   const maxLoss = netDebitTotal;
