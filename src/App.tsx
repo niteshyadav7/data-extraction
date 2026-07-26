@@ -37,7 +37,6 @@ import type {
 import { parseOptionChainCsv, parseFuturesCsv, parseOptCsv, parseFiiDiiParticipantOiCsv } from './utils/csvParser';
 import { calculateDashboardMetrics } from './utils/calculations';
 import { fetchYahooFinanceOHLCV, getYahooTickerForSymbol } from './utils/yahooFinance';
-import { loadStocksList } from './utils/stocksParser';
 
 import { attachGlobalWindowJson } from './utils/exportJson';
 
@@ -327,71 +326,8 @@ export function App() {
     }
   }
 
-    // 2. Fallback for ANY symbol
     if (!success) {
-      try {
-        const headCheck = await fetch('/MW-FO-nse50_fut-25-Jul-2026.csv', { method: 'HEAD' }).catch(() => null);
-        if (headCheck && headCheck.ok) {
-          const futRes = await fetch('/MW-FO-nse50_fut-25-Jul-2026.csv');
-          const optRes = await fetch('/MW-FO-nse50_opt-25-Jul-2026.csv');
-          const ocRes = await fetch('/option-chain-ED-NIFTY-28-Jul-2026.csv');
-
-        if (futRes.ok && optRes.ok && ocRes.ok) {
-          const futText = await futRes.text();
-          const optText = await optRes.text();
-          const ocText = await ocRes.text();
-
-          const { data: optionChainData, warningsPartial } = parseOptionChainCsv(ocText);
-          let futuresData = parseFuturesCsv(futText);
-          const optData = parseOptCsv(optText);
-
-          const yahooSymbol = getYahooTickerForSymbol(symbol, type);
-          const baseSpot = optionChainData.length > 0 ? optionChainData[0].underlyingValue : 23767.45;
-
-          const freshHv = await fetchYahooFinanceOHLCV(baseSpot, yahooSymbol);
-
-          let targetSpot = freshHv.latestSpotPrice > 0 ? freshHv.latestSpotPrice : baseSpot;
-
-          if (targetSpot === baseSpot && symbol !== 'NIFTY') {
-            const allStocks = await loadStocksList();
-            const stockInfo = allStocks.find(s => s.symbol === symbol.toUpperCase());
-            if (stockInfo && stockInfo.cmp > 0) {
-              targetSpot = stockInfo.cmp;
-            }
-          }
-
-          futuresData = {
-            ...futuresData,
-            symbol,
-            spotPrice: targetSpot,
-            ltp: targetSpot > 0 ? Math.round(targetSpot * 1.0026 * 100) / 100 : futuresData.ltp
-          };
-
-          const scaleRatio = targetSpot / baseSpot;
-
-          const scaledOptionChain = optionChainData.map(r => ({
-            ...r,
-            strikePrice: Math.round(r.strikePrice * scaleRatio),
-            ceLtp: Math.round(r.ceLtp * scaleRatio * 100) / 100,
-            peLtp: Math.round(r.peLtp * scaleRatio * 100) / 100,
-            underlyingValue: targetSpot
-          }));
-
-          const calculated = calculateDashboardMetrics(
-            scaledOptionChain,
-            futuresData,
-            optData,
-            warningsPartial,
-            freshHv,
-            riskFreeRate
-          );
-
-          setMetrics(calculated);
-        }
-        }
-      } catch (err) {
-        console.error(`Failed to load market data for ${symbol}:`, err);
-      }
+      console.warn(`Could not fetch live market data for ${symbol}. Please verify network connection or click Manual Live Sync.`);
     }
   };
 

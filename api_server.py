@@ -56,82 +56,8 @@ NSE_HEADERS = {
     "Referer": "https://www.nseindia.com/option-chain"
 }
 
-def generate_fallback_option_chain(symbol: str) -> Dict[str, Any]:
-    symbol_upper = symbol.upper()
-    spot_map = {
-        'NIFTY': 23800.0,
-        'BANKNIFTY': 51500.0,
-        'FINNIFTY': 23200.0,
-        'MIDCPNIFTY': 12200.0,
-        'NIFTYIT': 38500.0,
-        'RELIANCE': 3050.0,
-        'TCS': 4200.0,
-        'INFY': 1850.0,
-        'HDFCBANK': 1650.0,
-        'ICICIBANK': 1220.0
-    }
-    spot = spot_map.get(symbol_upper, 2200.0)
-    step = 50 if spot < 30000 else 100
-    if spot < 2000:
-        step = 20
-
-    atm = int(round(spot / step) * step)
-    strikes = [atm + i * step for i in range(-15, 16)]
-    now_str = datetime.now().strftime("%d-%b-%Y")
-
-    data = []
-    for k in strikes:
-        ce_dist = (spot - k) / spot
-        pe_dist = (k - spot) / spot
-
-        ce_ltp = max(5.0, round(spot * 0.02 * math.exp(ce_dist * 5), 2))
-        pe_ltp = max(5.0, round(spot * 0.02 * math.exp(pe_dist * 5), 2))
-
-        ce_oi = int(max(1000, 50000 * math.exp(-abs(k - spot) / (step * 5))))
-        pe_oi = int(max(1000, 60000 * math.exp(-abs(k - spot) / (step * 5))))
-
-        data.append({
-            "strikePrice": k,
-            "expiryDate": now_str,
-            "CE": {
-                "strikePrice": k,
-                "expiryDate": now_str,
-                "underlying": symbol_upper,
-                "openInterest": ce_oi,
-                "changeinOpenInterest": int(ce_oi * 0.05),
-                "totalTradedVolume": int(ce_oi * 1.5),
-                "impliedVolatility": 14.5,
-                "lastPrice": ce_ltp,
-                "buyPrice1": round(ce_ltp - 0.25, 2),
-                "sellPrice1": round(ce_ltp + 0.25, 2),
-                "underlyingValue": spot
-            },
-            "PE": {
-                "strikePrice": k,
-                "expiryDate": now_str,
-                "underlying": symbol_upper,
-                "openInterest": pe_oi,
-                "changeinOpenInterest": int(pe_oi * 0.06),
-                "totalTradedVolume": int(pe_oi * 1.8),
-                "impliedVolatility": 13.8,
-                "lastPrice": pe_ltp,
-                "buyPrice1": round(pe_ltp - 0.25, 2),
-                "sellPrice1": round(pe_ltp + 0.25, 2),
-                "underlyingValue": spot
-            }
-        })
-
-    return {
-        "records": {
-            "expiryDates": [now_str],
-            "data": data,
-            "timestamp": f"{datetime.now().strftime('%d-%b-%Y %H:%M:%S')} IST",
-            "underlyingValue": spot
-        }
-    }
-
 class NSELiveSession:
-    """Session manager for fetching live NSE option chain with cookie rotation."""
+    """Session manager for fetching strictly 100% REAL live NSE option chain with cookie rotation."""
     def __init__(self):
         self.session = requests.Session()
         self.session.headers.update(NSE_HEADERS)
@@ -140,8 +66,8 @@ class NSELiveSession:
 
     def init_session(self):
         try:
-            r1 = self.session.get("https://www.nseindia.com", timeout=8)
-            r2 = self.session.get("https://www.nseindia.com/option-chain", timeout=8)
+            r1 = self.session.get("https://www.nseindia.com", timeout=10)
+            r2 = self.session.get("https://www.nseindia.com/option-chain", timeout=10)
             if r1.status_code == 200 or r2.status_code == 200:
                 self.cookies_initialized = True
                 self.last_init_time = time.time()
@@ -164,21 +90,23 @@ class NSELiveSession:
             self.init_session()
 
         try:
-            res = self.session.get(endpoint, timeout=8)
+            res = self.session.get(endpoint, timeout=10)
             if res.status_code in (401, 403):
                 self.init_session()
-                res = self.session.get(endpoint, timeout=8)
+                res = self.session.get(endpoint, timeout=10)
 
             if res.status_code == 200:
                 json_data = res.json()
                 if json_data and 'records' in json_data and json_data['records'].get('data'):
                     return json_data
+                else:
+                    raise HTTPException(status_code=502, detail=f"NSE returned empty records for {symbol_upper}")
+            else:
+                raise HTTPException(status_code=res.status_code, detail=f"NSE API returned status {res.status_code}")
+        except HTTPException:
+            raise
         except Exception as e:
-            print(f"NSE Live fetch exception for {symbol_upper}: {e}")
-
-        # If NSE blocks request or is offline/off-market, return resilient fallback payload
-        print(f"Serving resilient option chain payload for {symbol_upper}")
-        return generate_fallback_option_chain(symbol_upper)
+            raise HTTPException(status_code=502, detail=f"Live NSE Connection Error for {symbol_upper}: {str(e)}")
 
 # Global NSE Session Instance
 nse_session = NSELiveSession()
