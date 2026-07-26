@@ -18,14 +18,32 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Enable CORS for frontend and external integrations
+# Enable 100% Permissive CORS for all origins, protocols (http/https), and domains
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins in production or configure specific domains
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_origin_regex=".*",
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.middleware("http")
+async def add_cors_headers(request, call_next):
+    origin = request.headers.get("origin", "*")
+    if request.method == "OPTIONS":
+        response = Response(status_code=200)
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = "*"
+        response.headers["Access-Control-Max-Age"] = "86400"
+        return response
+    
+    response = await call_next(request)
+    response.headers["Access-Control-Allow-Origin"] = origin
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    return response
 
 # Constants & Headers
 DEFAULT_RISK_FREE_RATE = 0.0525  # 5.25%
