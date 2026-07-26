@@ -330,9 +330,11 @@ export function App() {
     // 2. Fallback for ANY symbol
     if (!success) {
       try {
-        const futRes = await fetch('/MW-FO-nse50_fut-25-Jul-2026.csv');
-        const optRes = await fetch('/MW-FO-nse50_opt-25-Jul-2026.csv');
-        const ocRes = await fetch('/option-chain-ED-NIFTY-28-Jul-2026.csv');
+        const headCheck = await fetch('/MW-FO-nse50_fut-25-Jul-2026.csv', { method: 'HEAD' }).catch(() => null);
+        if (headCheck && headCheck.ok) {
+          const futRes = await fetch('/MW-FO-nse50_fut-25-Jul-2026.csv');
+          const optRes = await fetch('/MW-FO-nse50_opt-25-Jul-2026.csv');
+          const ocRes = await fetch('/option-chain-ED-NIFTY-28-Jul-2026.csv');
 
         if (futRes.ok && optRes.ok && ocRes.ok) {
           const futText = await futRes.text();
@@ -385,6 +387,7 @@ export function App() {
           );
 
           setMetrics(calculated);
+        }
         }
       } catch (err) {
         console.error(`Failed to load market data for ${symbol}:`, err);
