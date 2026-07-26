@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { LayoutGrid, BarChart2, Calculator, Zap, Menu } from 'lucide-react';
 import { Header } from './components/Header';
 import { FileUpload } from './components/FileUpload';
 import { ConfigBar } from './components/ConfigBar';
@@ -46,6 +47,7 @@ export function App() {
   const [syncInterval, setSyncInterval] = useState<number>(60);
   const [selectedSymbol, setSelectedSymbol] = useState<string>('NIFTY');
   const [selectedType, setSelectedType] = useState<'INDEX' | 'STOCK'>('INDEX');
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState<boolean>(false);
 
   // Clean file upload state for 5 required CSV files
   const [filesState, setFilesState] = useState<UploadedFilesState>({
@@ -476,17 +478,34 @@ export function App() {
         onSelectSymbol={handleSelectSymbol}
         onReset={handleReset}
         onGoToDashboard={() => handleSelectView('DASHBOARD')}
+        onToggleMobileNav={() => setIsMobileNavOpen(!isMobileNavOpen)}
       />
 
+      {/* Mobile Drawer Backdrop */}
+      <div
+        className={`mobile-drawer-backdrop ${isMobileNavOpen ? 'active' : ''}`}
+        onClick={() => setIsMobileNavOpen(false)}
+      />
+
+      {/* Mobile Sidebar Slide-Over Drawer */}
+      <div className={`mobile-sidebar-drawer ${isMobileNavOpen ? 'open' : ''}`}>
+        <SidebarNav
+          currentView={currentView}
+          onSelectView={handleSelectView}
+          isOpenMobile={isMobileNavOpen}
+          onCloseMobile={() => setIsMobileNavOpen(false)}
+        />
+      </div>
+
       <div style={{ display: 'flex', width: '100%', minHeight: 'calc(100vh - 70px)' }}>
-        {/* Collapsible Sidebar Navigation */}
+        {/* Desktop Sidebar Navigation */}
         <SidebarNav
           currentView={currentView}
           onSelectView={handleSelectView}
         />
 
         {/* Main Dashboard / Strategy Studio Workspace Content */}
-        <main style={{ flex: 1, minWidth: 0, padding: '24px 28px' }}>
+        <main style={{ flex: 1, minWidth: 0, padding: '16px 20px', maxWidth: '100%', overflowX: 'hidden' }}>
           <ConfigBar
             riskFreeRate={riskFreeRate}
             onRateChange={handleRiskFreeRateChange}
@@ -724,6 +743,49 @@ export function App() {
           )}
         </main>
       </div>
+
+      {/* Mobile Quick Bottom Navigation Bar */}
+      <nav className="mobile-bottom-nav">
+        <button
+          className={`mobile-nav-btn ${currentView === 'DASHBOARD' ? 'active' : ''}`}
+          onClick={() => handleSelectView('DASHBOARD')}
+        >
+          <LayoutGrid size={18} />
+          Overview
+        </button>
+
+        <button
+          className={`mobile-nav-btn ${currentView === 'LTP_CALCULATOR' ? 'active' : ''}`}
+          onClick={() => handleSelectView('LTP_CALCULATOR')}
+        >
+          <Calculator size={18} />
+          LTP Calc
+        </button>
+
+        <button
+          className={`mobile-nav-btn ${currentView === 'STRATEGY_HUB' || currentView === 'IRON_CONDOR' ? 'active' : ''}`}
+          onClick={() => handleSelectView('STRATEGY_HUB')}
+        >
+          <Zap size={18} />
+          Strategies
+        </button>
+
+        <button
+          className={`mobile-nav-btn ${currentView === 'HISTORICAL_BACKTEST' ? 'active' : ''}`}
+          onClick={() => handleSelectView('HISTORICAL_BACKTEST')}
+        >
+          <BarChart2 size={18} />
+          Backtest
+        </button>
+
+        <button
+          className="mobile-nav-btn"
+          onClick={() => setIsMobileNavOpen(true)}
+        >
+          <Menu size={18} />
+          Menu
+        </button>
+      </nav>
     </div>
   );
 }

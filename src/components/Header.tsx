@@ -1,5 +1,5 @@
 import React from 'react';
-import { Download, RefreshCw, BarChart2, FileSpreadsheet } from 'lucide-react';
+import { Download, RefreshCw, BarChart2, FileSpreadsheet, Menu } from 'lucide-react';
 import type { DashboardMetrics } from '../types';
 import { SymbolSearch } from './SymbolSearch';
 import { exportAnalysisToExcel } from '../utils/exportExcel';
@@ -12,6 +12,7 @@ interface HeaderProps {
   onSelectSymbol: (symbol: string, type: 'INDEX' | 'STOCK') => void;
   onReset: () => void;
   onGoToDashboard?: () => void;
+  onToggleMobileNav?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -19,23 +20,45 @@ export const Header: React.FC<HeaderProps> = ({
   selectedSymbol,
   onSelectSymbol,
   onReset,
-  onGoToDashboard
+  onGoToDashboard,
+  onToggleMobileNav
 }) => {
   return (
     <header style={{
       backgroundColor: 'var(--bg-sidebar)',
       borderBottom: '1px solid var(--border-color)',
-      padding: '14px 28px',
+      padding: '12px 16px',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'space-between',
       flexWrap: 'wrap',
-      gap: '16px'
+      gap: '12px'
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+        {onToggleMobileNav && (
+          <button
+            onClick={onToggleMobileNav}
+            className="mobile-menu-btn"
+            style={{
+              backgroundColor: 'var(--bg-main)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '8px',
+              padding: '8px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--text-main)'
+            }}
+            title="Open Mobile Navigation Menu"
+          >
+            <Menu size={22} color="var(--accent-gold-dark)" />
+          </button>
+        )}
+
         <div
           onClick={() => onGoToDashboard && onGoToDashboard()}
-          style={{ display: 'flex', alignItems: 'center', gap: '14px', cursor: 'pointer' }}
+          style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}
           title="Return to Main Dashboard Market Summary"
         >
           <div style={{

@@ -17,7 +17,8 @@ import {
   Activity,
   Award,
   Layers,
-  Building2
+  Building2,
+  X
 } from 'lucide-react';
 
 interface NavSection {
@@ -34,12 +35,16 @@ interface SidebarNavProps {
   activeSection?: string;
   currentView?: 'DASHBOARD' | 'STRATEGY_HUB' | 'LTP_CALCULATOR' | 'LTP_STRATEGY' | 'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BEAR_CALL_CREDIT' | 'SHORT_STRANGLE' | 'RATIO_PUT_SPREAD' | 'CALENDAR_SPREAD' | 'HISTORICAL_BACKTEST';
   onSelectView?: (view: 'DASHBOARD' | 'STRATEGY_HUB' | 'LTP_CALCULATOR' | 'LTP_STRATEGY' | 'IRON_CONDOR' | 'IRON_BUTTERFLY' | 'BULL_PUT_CREDIT' | 'BEAR_CALL_CREDIT' | 'SHORT_STRANGLE' | 'RATIO_PUT_SPREAD' | 'CALENDAR_SPREAD' | 'HISTORICAL_BACKTEST', sectionId?: string) => void;
+  isOpenMobile?: boolean;
+  onCloseMobile?: () => void;
 }
 
 export const SidebarNav: React.FC<SidebarNavProps> = ({
   activeSection = 'sec-summary',
   currentView = 'DASHBOARD',
-  onSelectView
+  onSelectView,
+  isOpenMobile: _isOpenMobile = false,
+  onCloseMobile
 }) => {
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
   const [currentActive, setCurrentActive] = useState<string>(activeSection);
@@ -144,6 +149,10 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
       'QUANT TOOLS': catTitle === 'QUANT TOOLS',
       'QUANT STRATEGIES': catTitle === 'QUANT STRATEGIES'
     });
+
+    if (onCloseMobile) {
+      onCloseMobile();
+    }
 
     if (item.id === 'sec-summary') {
       if (onSelectView) onSelectView('DASHBOARD');
@@ -272,25 +281,45 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
           </span>
         )}
 
-        <button
-          onClick={() => setIsCollapsed(!isCollapsed)}
-          style={{
-            backgroundColor: 'var(--bg-main)',
-            border: '1px solid var(--border-color)',
-            borderRadius: '6px',
-            padding: '6px',
-            cursor: 'pointer',
-            color: 'var(--text-main)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-            transition: 'all 0.15s ease'
-          }}
-          title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
-        >
-          {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
-        </button>
+        {onCloseMobile ? (
+          <button
+            onClick={onCloseMobile}
+            style={{
+              backgroundColor: 'var(--bg-main)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '6px',
+              padding: '6px',
+              cursor: 'pointer',
+              color: 'var(--text-main)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+            title="Close Drawer"
+          >
+            <X size={18} />
+          </button>
+        ) : (
+          <button
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            style={{
+              backgroundColor: 'var(--bg-main)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '6px',
+              padding: '6px',
+              cursor: 'pointer',
+              color: 'var(--text-main)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+              transition: 'all 0.15s ease'
+            }}
+            title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+          >
+            {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+          </button>
+        )}
       </div>
 
       {/* Accordion Nav List */}
